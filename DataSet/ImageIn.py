@@ -5,15 +5,17 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from tensorboardX import SummaryWriter
-from pytorchtools import EarlyStopping
+# from pytorchtools import EarlyStopping
 
 from T4T.Utility.Loader import BinaryOneImageOneLabel, BinaryOneImageOneLabelTest
 from T4T.Utility.ImageProcessor import ImageProcess2D
 # from T4T.Utility.Metric import AUC
 from MeDIT.DataAugmentor import random_2d_augment
 
+from Metric.classification_statistics import get_auc, compute_confusion_matrix
 from Model.UNet import Unet
 from FilePath import *
+from DataProcess.CheckPoint import EarlyStopping
 
 
 def BinaryPred(prediction):
@@ -29,13 +31,13 @@ def Train():
 
     data_shape = {'input_0': (1, 184, 184), 'output_0': (2,)}
 
-    # writer = SummaryWriter(log_dir=graph_folder, comment='Net')
+    writer = SummaryWriter(log_dir=graph_folder, comment='Net')
 
-    train_set = BinaryOneImageOneLabel(root_folder=input_0_output_0_train,
+    train_set = BinaryOneImageOneLabel(root_folder=train_folder,
                                      data_shape=data_shape,
                                      processor=processor)
 
-    valid_set = BinaryOneImageOneLabel(root_folder=input_0_output_0_validation,
+    valid_set = BinaryOneImageOneLabel(root_folder=validation_folder,
                                      data_shape=data_shape,
                                      processor=processor)
 
@@ -57,8 +59,9 @@ def Train():
     for epoch in range(150):
         train_loss_list, valid_loss_list= [], []
         train_auc_list, valid_auc_list = [], []
-        model.train()
+        label_list, pred_list = [], []
 
+        model.train()
         for i, train_data in enumerate(train_loader):
             inputs, labels = train_data
             inputs, labels = inputs.to(device), labels.to(device)
@@ -68,19 +71,24 @@ def Train():
             outputs = model(inputs)
 
             loss = criterion(outputs, labels)
-            # train_auc.append(metric_auc.__call__(outputs, labels))
 
             loss.backward()
             optimizer.step()
 
             # TODO:
-            label_list.append(np.squeeze(labels.cpu().numpy())[0])
-            pred_list.append(np.squeeze(outputs.cpu().detach().numpy())[0])
-            train_auc = get_auc(pred_list, label_list)
+            sigmoid_outputs = torch.sigmoid(outputs)
+            label_list.extend(list(labels.cpu().numpy()[..., 0]))
+            pred_list.extend(list(sigmoid_outputs.cpu().detach().numpy()[..., 0]))
+            train_auc = get_auc(pred_list, label_list, draw=False)
 
             train_loss_list.append(loss.item())
             train_auc_list.append(train_auc)
             train_loss += loss.item()
+
+            if (i + 1) % 10 == 0:
+                print('Epoch [%d / %d], Iter [%d], Train Loss: %.4f, Train auc: %.4f' %
+                      (epoch + 1, 150, i + 1, train_loss/10, sum(train_auc_list)/len(train_auc_list)))
+                train_loss = 0.0
 
         model.eval()
         for i, valid_data in enumerate(valid_loader):
@@ -95,59 +103,55 @@ def Train():
             valid_loss += loss.item()
 
             # TODO:
-            label_list.append(np.squeeze(labels.cpu().numpy())[0])
-            pred_list.append(np.squeeze(outputs.cpu().detach().numpy())[0])
-            valid_auc = get_auc(pred_list, label_list)
+            sigmoid_outputs = torch.sigmoid(outputs)
+            label_list.extend(list(labels.cpu().numpy()[..., 0]))
+            pred_list.extend(list(sigmoid_outputs.cpu().detach().numpy()[..., 0]))
+            valid_auc = get_auc(pred_list, label_list, draw=False)
             valid_auc_list.append(valid_auc)
+            valid_loss_list.append(loss.item())
 
             if (i + 1) % 10 == 0:
-                print('Epoch [%d / %d], Iter [%d], Train Loss: %.4f, Train auc: %.4f, Valid Loss: %.4f, valid auc: %.4f' %
-                      (epoch + 1, 150, i + 1, train_loss/10, train_auc,  valid_loss/10, valid_auc))
-                # print('Loss: %.4f, Auc: %.4f'.format(train_loss/10, np.mean(train_auc)))
-                train_loss = 0.0
+                print('Epoch [%d / %d], Iter [%d], Valid Loss: %.4f, valid auc: %.4f' %
+                      (epoch + 1, 150, i + 1, valid_loss/10, sum(valid_auc_list)/len(valid_auc_list)))
                 valid_loss = 0.0
 
-        scheduler.step(valid_loss)
+        writer.add_scalars('Train_Val_Loss',
+                           {'train_loss': np.mean(train_loss_list), 'val_loss': np.mean(valid_loss_list)}, epoch + 1)
+        writer.add_scalars('Train_Val_Auc',
+                           {'train_auc': np.mean(train_auc_list), 'val_auc': np.mean(valid_auc_list)}, epoch + 1)
+        writer.close()
 
-        early_stopping(valid_loss, model)
+        print('Epoch:', epoch + 1, 'Training Loss:', np.mean(train_loss_list), 'Valid Loss:', np.mean(valid_loss_list))
+
+        scheduler.step(np.mean(valid_loss_list))
+        early_stopping(np.mean(valid_loss_list), model, save_path=model_save_path)
 
         if early_stopping.early_stop:
             print("Early stopping")
             break
 
-        # writer.add_scalars('Train_Val_Loss', {'train_loss_list': np.mean(train_loss_list), 'val_loss': np.mean(valid_loss_list)}, epoch+1)
-        # writer.close()
-
-        print('Epoch:', epoch + 1, 'Training Loss:', np.mean(train_loss_list), 'Valid Loss:', np.mean(valid_loss_list))
-
-        state = {
-            'epoch': epoch,
-            'model_state_dict': model.state_dict(),
-            'optimizer_state_dict': optimizer.state_dict()
-        }
-        torch.save(state, PATH)
+        # state = {
+        #     'epoch': epoch,
+        #     'model_state_dict': model.state_dict(),
+        #     'optimizer_state_dict': optimizer.state_dict()
+        # }
+        # torch.save(state, PATH)
     # torch.save(model, model_save_path)
 
 def Test():
-    from Metric.classification_statistics import get_auc, compute_confusion_matrix
-    from sklearn import metrics
-
-    total = 0.0
-    correct = 0.0
-
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
-    data_shape = {'input_0': (1, 280, 280), 'output_0': (2,)}
+    data_shape = {'input_0': (1, 184, 184), 'output_0': (2,)}
 
     test_set = BinaryOneImageOneLabelTest(root_folder=test_folder, data_shape=data_shape)
     test_loader = DataLoader(test_set, batch_size=1, shuffle=True)
 
     # model = torch.load(model_path)
     model = Unet(in_channels=1, out_channels=1)
-    checkpoint = torch.load(model_path)
-    model.load_state_dict(checkpoint['net'])
-    optimizer.load_state_dict(checkpoint['optimizer'])
-    start_epoch = checkpoint['epoch'] + 1
+    model = model.to(device)
+    model.load_state_dict(torch.load(model_path))
+    model.eval()
+
 
     label_list = []
     pred_list = []
@@ -165,10 +169,6 @@ def Test():
     auc = get_auc(pred_list, label_list)
     compute_confusion_matrix(binary_list, label_list, model_name='ECE-UNet')
     print(auc)
-        # total += labels.size(0)
-
-    # correct += (outputs == labels).sum()
-    # print('Accuracy of the model on the test image: %d %%' % (100 * correct / total))
 
 
 if __name__ == '__main__':
