@@ -5,7 +5,6 @@ import torchvision.transforms as transforms
 import torch.nn.functional as F
 from torch.autograd import Variable
 
-device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 def conv3x3(in_channels, out_channels, stride=1):
     return nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=stride, padding=1, bias=False)
@@ -69,81 +68,18 @@ class Unet(nn.Module):
         merge8 = torch.cat((up_7, c1), dim=1)
         c8 = self.conv8(merge8)
         c9 = self.conv9(c8)
-        c9 = c9.view(-1, 1*280*280)
-        out = self.fc2(self.fc1(c9))
+        # c9 = c9.view(-1, 1*280*280)
+        # out = self.fc2(self.fc1(c9))
         # out = nn.Softmax()(c9)
-        return F.sigmoid(out)
+        # return F.sigmoid(out)
+        return nn.Softmax(c9)
 
 
 def test():
-    transform = transforms.Compose([transforms.Resize(40),
-                                    transforms.RandomHorizontalFlip(),
-                                    transforms.RandomCrop(32),
-                                    transforms.ToTensor()])
-
-    train_dataset = dsets.CIFAR10(root='C:/PytorchLearning/data/',
-                                  train=True,
-                                  transform=transform,
-                                  # transform=transforms.ToTensor(),
-                                  download=True)
-
-    test_dataset = dsets.CIFAR10(root='C:/PytorchLearning/data/',
-                                 train=False,
-                                 transform=transforms.ToTensor())
-
-    train_loader = torch.utils.data.DataLoader(dataset=train_dataset,
-                                               batch_size=100,
-                                               shuffle=True,
-                                               # num_workers=2
-                                               )
-
-    test_loader = torch.utils.data.DataLoader(dataset=test_dataset,
-                                              batch_size=100,
-                                              shuffle=False,
-                                              # num_workers=2
-                                              )
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     model = Unet(in_channels=3, out_channels=3)
     model = model.to(device)
     print(model)
-    # nn.Sequential(*Unet)
-    model.cuda()
-    # criterion = nn.CrossEntropyLoss()
-    criterion = nn.BCELoss()
-    lr = 0.001
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    for epoch in range(80):
-        for i, data in enumerate(train_loader):
-            # torch.size([100, 3, 32, 32])
-            inputs, labels = data
-            # torch.size([100])
-            inputs, labels = inputs.to(device), labels.to(device)
-
-            optimizer.zero_grad()
-            outputs = model(inputs)
-
-            loss = criterion(outputs, labels)
-            loss.backward()
-            optimizer.step()
-
-            if (i + 1) % 100 == 0:
-                print('Epoch [%d / %d], Iter [%d / %d] Loss: %.4f' % (epoch + 1, 80, i + 1, 500, loss.data[0]))
-
-        if (i + 1) % 20 == 0:
-            lr /= 3
-            optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-
-    correct = 0
-    total = 0
-
-    for images, labels in test_loader:
-        images = Variable(images.cuda())
-        outputs = model(images)
-        _, predicted = torch.max(outputs.data, 1)
-        total += labels.size(0)
-
-    correct += (predicted.cpu() == labels).sum()
-    print('Accuracy of the model on the test image: %d %%' % (100 * correct / total))
-    torch.save(model.state_dict(), 'resnet.pkl')
 
 
 if __name__ == '__main__':

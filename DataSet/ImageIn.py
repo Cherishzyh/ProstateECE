@@ -15,7 +15,7 @@ from MeDIT.DataAugmentor import random_2d_augment
 from Metric.classification_statistics import get_auc, compute_confusion_matrix
 from Model.UNet import Unet
 from FilePath import *
-from DataProcess.CheckPoint import EarlyStopping
+from DataSet.CheckPoint import EarlyStopping
 
 
 def BinaryPred(prediction):
