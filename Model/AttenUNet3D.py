@@ -4,31 +4,31 @@ import torch.nn as nn
 from Model.Block import DoubleConv3D, AttentionBlock3D
 
 
-class AttenUNet(nn.Module):
+class AttenUNet3D(nn.Module):
     def __init__(self, in_channels, out_channels):
-        super(AttenUNet, self).__init__()
+        super(AttenUNet3D, self).__init__()
 
         self.Conv1 = DoubleConv3D(in_channels, 64)
-        self.Pool1 = nn.MaxPool2d(kernel_size=2, stride=2)
+        self.Pool1 = nn.MaxPool3d(kernel_size=2, stride=2)
         self.Conv2 = DoubleConv3D(64, 128)
-        self.Pool2 = nn.MaxPool2d(kernel_size=2, stride=2)
+        self.Pool2 = nn.MaxPool3d(kernel_size=2, stride=2)
         self.Conv3 = DoubleConv3D(128, 256)
-        self.Pool3 = nn.MaxPool2d(kernel_size=2, stride=2)
+        self.Pool3 = nn.MaxPool3d(kernel_size=2, stride=2)
         self.Conv4 = DoubleConv3D(256, 512)
 
-        self.Up5 = nn.ConvTranspose2d(512, 512, kernel_size=2, stride=2)
+        self.Up5 = nn.ConvTranspose3d(512, 512, kernel_size=2, stride=2)
         self.Att5 = AttentionBlock3D(F_g=256, F_l=512, F_int=512)
         self.Conv5 = DoubleConv3D(1024, 256)
 
-        self.Up6 = nn.ConvTranspose2d(256, 256, kernel_size=2, stride=2)
+        self.Up6 = nn.ConvTranspose3d(256, 256, kernel_size=2, stride=2)
         self.Att6 = AttentionBlock3D(F_g=128, F_l=256, F_int=256)
         self.Conv6 = DoubleConv3D(512, 128)
 
-        self.Up7 = nn.ConvTranspose2d(128, 128, kernel_size=2, stride=2)
+        self.Up7 = nn.ConvTranspose3d(128, 128, kernel_size=2, stride=2)
         self.Att7 = AttentionBlock3D(F_g=64, F_l=128, F_int=128)
         self.Conv7 = DoubleConv3D(256, 64)
 
-        self.Conv_1x1 = nn.Conv2d(64, out_channels, kernel_size=1, stride=1, padding=0)
+        self.Conv_1x1 = nn.Conv3d(64, out_channels, kernel_size=1, stride=1, padding=0)
         self.sigmiod = nn.Sigmoid()
 
     def forward(self, x):
@@ -65,7 +65,7 @@ class AttenUNet(nn.Module):
 
 def test():
     # device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-    model = AttenUNet(in_channels=1, out_channels=1)
+    model = AttenUNet3D(in_channels=1, out_channels=1)
     # model = model.to(device)
     print(model)
 

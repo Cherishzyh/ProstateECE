@@ -5,8 +5,8 @@ import numpy as np
 
 from MeDIT.SaveAndLoad import LoadH5
 
-from FilePath import process_folder, cnn_folder, Train_path, Test_path, Validation_path, input_0_output_0_path
-from DataProcess.SelectDWI import NearTrueB
+from FilePath import *
+from ECEDataProcess.DataProcess.SelectDWI import NearTrueB
 # 正负样本比例1:3
 # b值800的在test
 
@@ -106,6 +106,34 @@ def ComputeV(folder):
         volume_list.append(np.sum(label))
     return sum(volume_list) / len(volume_list)
 
+
+def Divide(des_folder, folder):
+    des_train_folder = os.path.join(des_folder, 'Train')
+    train_folder = os.path.join(folder, 'Train')
+
+    des_validation_folder = os.path.join(des_folder, 'validation')
+    validation_folder = os.path.join(folder, 'validation')
+
+    des_test_folder = os.path.join(des_folder, 'Test')
+    test_folder = os.path.join(folder, 'Test')
+
+    case_list = os.listdir(des_folder)
+
+    train_case_list = os.listdir(train_folder)
+    validation_case_list = os.listdir(validation_folder)
+    test_case_list = os.listdir(test_folder)
+
+    for case in case_list:
+        case_name = case[:case.index('.npy')] + '.h5'
+        if case_name in train_case_list:
+            shutil.move(os.path.join(des_folder, case), os.path.join(des_train_folder, case))
+        elif case_name in validation_case_list:
+            shutil.move(os.path.join(des_folder, case), os.path.join(des_validation_folder, case))
+        elif case_name in test_case_list:
+            shutil.move(os.path.join(des_folder, case), os.path.join(des_test_folder, case))
+        else:
+            print(case)
+
 if __name__ == '__main__':
     # b_value = ['0', '50', '700', '750', '1400', '1500']
     # case_list = os.listdir(process_folder)
@@ -116,10 +144,11 @@ if __name__ == '__main__':
     #             print(case)
 
     # DivideH5Data(cnn_folder, Validation_path)
-    DivideInput0Data(cnn_folder, input_0_output_0_path, dataset='Test')
+    # DivideInput0Data(cnn_folder, input_0_output_0_path, dataset='Test')
 
     # ece_number, no_ece_number = StatisticsECE(Test_path)
     # print(ece_number, no_ece_number)
 
     # aver = ComputeV(Test_path)
     # print(aver)
+    Divide(r'X:\CNNFormatData\ProstateCancerECE\NPY\RoiSlice', input_0_output_0_path)
