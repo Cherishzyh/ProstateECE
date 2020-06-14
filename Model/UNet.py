@@ -1,9 +1,5 @@
 import torch
 import torch.nn as nn
-import torchvision.datasets as dsets
-import torchvision.transforms as transforms
-import torch.nn.functional as F
-from torch.autograd import Variable
 
 
 def conv3x3(in_channels, out_channels, stride=1):
@@ -30,9 +26,9 @@ class DoubleConv(nn.Module):
         return out
 
 
-class Unet(nn.Module):
+class UNet(nn.Module):
     def __init__(self,  in_channels, out_channels):
-        super(Unet, self).__init__()
+        super(UNet, self).__init__()
         self.conv1 = DoubleConv(in_channels, 64)
         self.pool1 = nn.MaxPool2d(2)
         self.conv2 = DoubleConv(64, 128)
@@ -47,8 +43,9 @@ class Unet(nn.Module):
         self.up7 = nn.ConvTranspose2d(128, 64, 2, stride=2)
         self.conv8 = DoubleConv(128, 64)
         self.conv9 = nn.Conv2d(64, out_channels, 1)
-        self.fc1 = nn.Linear(1*78400, 1*1000)
+        self.fc1 = nn.Linear(1*184*184, 1*1000)
         self.fc2 = nn.Linear(1*1000, 1*2)
+        self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):
         c1 = self.conv1(x)
@@ -68,16 +65,15 @@ class Unet(nn.Module):
         merge8 = torch.cat((up_7, c1), dim=1)
         c8 = self.conv8(merge8)
         c9 = self.conv9(c8)
-        # c9 = c9.view(-1, 1*280*280)
-        # out = self.fc2(self.fc1(c9))
-        # out = nn.Softmax()(c9)
-        # return F.sigmoid(out)
-        return nn.Softmax(c9)
+        c9 = c9.view(-1, 1*184*184)
+        out = self.fc2(self.fc1(c9))
+        # out = self.sigmoid(out)
+        return out
 
 
 def test():
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-    model = Unet(in_channels=3, out_channels=3)
+    model = UNet(in_channels=3, out_channels=3)
     model = model.to(device)
     print(model)
 

@@ -124,15 +124,19 @@ def Divide(des_folder, folder):
     test_case_list = os.listdir(test_folder)
 
     for case in case_list:
-        case_name = case[:case.index('.npy')] + '.h5'
-        if case_name in train_case_list:
-            shutil.move(os.path.join(des_folder, case), os.path.join(des_train_folder, case))
-        elif case_name in validation_case_list:
-            shutil.move(os.path.join(des_folder, case), os.path.join(des_validation_folder, case))
-        elif case_name in test_case_list:
-            shutil.move(os.path.join(des_folder, case), os.path.join(des_test_folder, case))
-        else:
-            print(case)
+        if case not in ['FAN DA HAI_slice4.npy', 'MZH^mei zhen hua_slice12.npy', 'QGZ^qiu guo zhu_slice18.npy',
+                        'SHU ZHEN WEN_slice5.npy', 'WLJ^wu liang ju ^13815870351^6924-31_slice19.npy',
+                        'WXZ^wu xi zhong_slice13.npy', 'XNB^xu neng bao_slice9.npy', 'ZHANG HUAI MING_slice0.npy']:
+            if case not in ['Train', 'Validation', 'Test']:
+                case_name = case[:case.index('.npy')] + '.h5'
+                if case_name in train_case_list:
+                    shutil.move(os.path.join(des_folder, case), os.path.join(des_train_folder, case))
+                elif case_name in validation_case_list:
+                    shutil.move(os.path.join(des_folder, case), os.path.join(des_validation_folder, case))
+                elif case_name in test_case_list:
+                    shutil.move(os.path.join(des_folder, case), os.path.join(des_test_folder, case))
+                else:
+                    print(case)
 
 if __name__ == '__main__':
     # b_value = ['0', '50', '700', '750', '1400', '1500']
@@ -151,4 +155,4 @@ if __name__ == '__main__':
 
     # aver = ComputeV(Test_path)
     # print(aver)
-    Divide(r'X:\CNNFormatData\ProstateCancerECE\NPY\RoiSlice', input_0_output_0_path)
+    Divide(r'X:\CNNFormatData\ProstateCancerECE\NPYOnehot\RoiSlice', input_0_output_0_path)

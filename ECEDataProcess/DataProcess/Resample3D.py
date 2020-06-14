@@ -63,7 +63,7 @@ def TestNormalize():
 
 
 def ResampleData():
-    from MIP4AIM.MIP4AIM.NiiProcess.Resampler import Resampler
+    from MIP4AIM.NiiProcess.Resampler import Resampler
 
     root_folder = process_folder
     dest_root = r'X:\StoreFormatData\ProstateCancerECE\FailedData'

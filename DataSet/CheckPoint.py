@@ -22,26 +22,44 @@ class EarlyStopping:
         self.val_loss_min = np.Inf
         self.delta = delta
 
-    def __call__(self, val_loss, model, save_path):
+    def __call__(self, val_loss, model, save_path, evaluation):
 
-        score = -val_loss
+        if evaluation == min:
+            score = -val_loss
+            if self.best_score is None:
+                self.best_score = score
+                self.save_checkpoint(val_loss, model, save_path, evaluation)
+            elif score < self.best_score + self.delta:
+                self.counter += 1
+                print(f'EarlyStopping counter: {self.counter} out of {self.patience}')
+                if self.counter >= self.patience:
+                    self.early_stop = True
+            else:
+                self.best_score = score
+                self.save_checkpoint(val_loss, model, save_path, evaluation)
+                self.counter = 0
 
-        if self.best_score is None:
-            self.best_score = score
-            self.save_checkpoint(val_loss, model, save_path)
-        elif score < self.best_score + self.delta:
-            self.counter += 1
-            print(f'EarlyStopping counter: {self.counter} out of {self.patience}')
-            if self.counter >= self.patience:
-                self.early_stop = True
-        else:
-            self.best_score = score
-            self.save_checkpoint(val_loss, model, save_path)
-            self.counter = 0
+        elif evaluation == max:
+            score = -val_loss
+            if self.best_score is None:
+                self.best_score = score
+                self.save_checkpoint(val_loss, model, save_path, evaluation)
+            elif score > self.best_score + self.delta:
+                self.counter += 1
+                print(f'EarlyStopping counter: {self.counter} out of {self.patience}')
+                if self.counter >= self.patience:
+                    self.early_stop = True
+            else:
+                self.best_score = score
+                self.save_checkpoint(val_loss, model, save_path, evaluation)
+                self.counter = 0
 
-    def save_checkpoint(self, val_loss, model, save_path):
+    def save_checkpoint(self, val_loss, model, save_path, evaluation):
         '''Saves model when validation loss decrease.'''
-        if self.verbose:
+        if self.verbose and evaluation == min:
             print(f'Validation loss decreased ({self.val_loss_min:.6f} --> {val_loss:.6f}).  Saving model ...')
+        elif self.verbose and evaluation == max:
+            print(f'Validation auc increased ({self.val_loss_min:.6f} --> {val_loss:.6f}).  Saving model ...')
+
         torch.save(model.state_dict(), os.path.join(save_path, 'checkpoint.pt'))
         self.val_loss_min = val_loss

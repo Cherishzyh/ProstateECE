@@ -9,17 +9,21 @@ from imblearn.metrics import specificity_score
 from sklearn.calibration import calibration_curve
 
 
-def get_auc(prob_list, label_list, draw=True):
+def get_auc(prob_list, label_list):
     fpr, tpr, thresholds = metrics.roc_curve(label_list, prob_list)
-
-    if draw:
-        plt.plot(fpr,tpr)
-        plt.xlabel('False Positive Rate')
-        plt.ylabel('True Positive Rate')
-        plt.show()
-
     auc = metrics.auc(fpr, tpr)
-    return auc
+    return fpr, tpr, auc
+
+def draw_roc(fpr_list, tpr_list, auc_list, name_list):
+    for idx in range(len(fpr_list)):
+        label = name_list[idx] + ': ' + '%.3f'%auc_list[idx]
+        plt.plot(fpr_list[idx], tpr_list[idx], label=label)
+
+    plt.plot([0, 1], [0, 1], '--', color='r', label='Luck')
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    plt.legend()
+    plt.show()
 
 
 def compute_ic(prob_list, label_list, process_viewing=False):

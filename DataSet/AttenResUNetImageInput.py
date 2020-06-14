@@ -1,38 +1,49 @@
 import os
 import numpy as np
+import matplotlib.pyplot as plt
 
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
+from torch.autograd import Variable
 from tensorboardX import SummaryWriter
-# from pytorchtools import EarlyStopping
 
 from T4T.Utility.Loader import ImageInImageOutDataSet
 from T4T.Utility.ImageProcessor import ImageProcess2D
 from MeDIT.DataAugmentor import random_2d_augment
 
+from Metric.Dice import Dice
 from Metric.classification_statistics import get_auc, compute_confusion_matrix
-from Model.UNet import Unet
-from FilePath import *
+from Model.AttenUNetMultiTask import AttenUNetMultiTask2D
+from Model.AttenUnet import AttenUNet
+# from FilePath import *
 from DataSet.CheckPoint import EarlyStopping
 
 
+train_folder = r'/home/zhangyihong/Documents/zhangyihong/Documents/ProstateECE/input_0_output_1_3D/Train'
+validation_folder = r'/home/zhangyihong/Documents/zhangyihong/Documents/ProstateECE/input_0_output_1_3D/Validation'
+test_folder = r'/home/zhangyihong/Documents/zhangyihong/Documents/ProstateECE/input_0_output_1_3D/Test'
+
+model_save_path = r'/home/zhangyihong/Documents/zhangyihong/Documents/ProstateECE/input_0_output_1_3D/Model'
+model_path = r'/home/zhangyihong/Documents/zhangyihong/Documents/ProstateECE/input_0_output_1_3D/Model/checkpoint.pt'
+
+graph_folder = r'/home/zhangyihong/Documents/zhangyihong/Documents/ProstateECE/input_0_output_1_3D/Model/logs/'
+image_folder = r'/home/zhangyihong/Documents/zhangyihong/Documents/ProstateECE/input_0_output_1_3D/Model/image/'
+def BinaryPred(prediction):
+    one = torch.ones_like(prediction)
+    zero = torch.zeros_like(prediction)
+    binary_prediction = torch.where(prediction > 0.5, one, zero)
+    return binary_prediction
+
+
 def Train():
-    graph_folder = r''
-    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    device = torch.device('cuda: 1' if torch.cuda.is_available() else 'cpu')
 
     processor = ImageProcess2D(reverse_channel=False, augment_param=random_2d_augment)
 
-    data_shape = {'input_0': (1, 184, 184), 'input_1': (1, 184, 184), 'input_2': (1, 184, 184),
-                  'output_0': (1, 184, 184), 'output_1': (2,)}
+    data_shape = {'input_0': (3, 184, 184), 'output_0': (1, 184, 184), 'output_1': (2,)}
 
-    not_roi_info = {'input_0': True, 'input_1': True, 'input_2': True, 'output_0': False, 'output_1': False}
-    #
-    # data_shape = {'input_0': (1, 184, 184), 'input_1': (1, 184, 184), 'input_2': (1, 184, 184),
-    #               'output_0': (1, 184, 184)}
-    #
-    # not_roi_info = {'input_0': True, 'input_1': True, 'input_2': True, 'output_0': False}
-    # writer = SummaryWriter(log_dir=graph_folder, comment='Net')
+    not_roi_info = {'input_0': True, 'output_0': False, 'output_1': False}
 
     train_set = ImageInImageOutDataSet(root_folder=train_folder,
                                        data_shape=data_shape,
@@ -48,103 +59,115 @@ def Train():
 
     valid_loader = DataLoader(valid_set, batch_size=12, shuffle=True)
 
-    model = Unet(in_channels=1, out_channels=1)
+    model = AttenUNetMultiTask2D(in_channels=3, out_channels=1)
     model = model.to(device)
 
-    paras = dict(model.named_parameters())
-    encoding_paras = []
-    decoding_paras = []
-    classified_paras = []
-    for k, v in paras.items():
-        if 'Encoding' in k:
-            encoding_paras.append(k)
-        elif 'Decoding' in k:
-            decoding_paras.append(k)
-        else:
-            classified_paras.append(k)
-
-    params = [
-        {"params": encoding_paras, "lr": 0.001},
-        {"params": decoding_paras, "lr": 0.005},
-        {"params": classified_paras, "lr": 0.005}
-    ]
-    optimizer = torch.optim.Adam(params)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
     train_loss = 0.0
     valid_loss = 0.0
-    criterion = nn.BCELoss()
+    criterion1 = nn.BCEWithLogitsLoss()
+    criterion2 = nn.NLLLoss()
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', patience=20, factor=0.5, verbose=True)
     early_stopping = EarlyStopping(patience=100, verbose=True)
+    writer = SummaryWriter(log_dir=graph_folder, comment='Net')
+    dice = Dice()
 
     for epoch in range(150):
         train_loss_list, valid_loss_list = [], []
-        train_auc_list, valid_auc_list = [], []
-        label_list, pred_list = [], []
+        train_dice_list, valid_dice_list = [], []
+        class_list, class_pred_list = [], []
+        seg_list, seg_pred_list = [], []
 
         model.train()
         for i, train_data in enumerate(train_loader):
             inputs, labels = train_data
-            input_0, input_1, input_2 = inputs
             roi, ece = labels
-            image = torch.cat((input_0, input_1, input_2), dim=1)
-            image, roi, ece = image.to(device), roi.to(device), ece.to(device)
+            inputs, roi, ece = inputs.to(device), roi.to(device), ece.to(device)
+            ece = torch.argmax(ece, dim=1)
+            ece = ece.long()
 
             optimizer.zero_grad()
 
-            outputs = model(inputs)
+            seg_out, class_out = model(inputs)
 
-            loss = criterion(outputs, labels)
+            loss1 = criterion1(seg_out, roi)
+            loss2 = criterion2(class_out, ece)
+            loss = loss1 + loss2
 
             loss.backward()
             optimizer.step()
 
-            # TODO:
-            sigmoid_outputs = torch.sigmoid(outputs)
-            label_list.extend(list(labels.cpu().numpy()[..., 0]))
-            pred_list.extend(list(sigmoid_outputs.cpu().detach().numpy()[..., 0]))
-            train_auc = get_auc(pred_list, label_list, draw=False)
-
-            train_loss_list.append(loss.item())
-            train_auc_list.append(train_auc)
             train_loss += loss.item()
+            train_loss_list.append(loss.item())
+
+            # compute dice
+            seg_out = BinaryPred(seg_out)
+            seg_list.extend(list(torch.squeeze(roi)))
+            seg_pred_list.extend(list(torch.squeeze(seg_out)))
+
+            # compute auc
+            # class_list.extend(list(ece.cpu().numpy()[..., 0]))
+            # class_pred_list.extend(list(class_out.cpu().detach().numpy()[..., 0]))
 
             if (i + 1) % 10 == 0:
-                print('Epoch [%d / %d], Iter [%d], Train Loss: %.4f, Train auc: %.4f' %
-                      (epoch + 1, 150, i + 1, train_loss/10, sum(train_auc_list)/len(train_auc_list)))
+                print('Epoch [%d / %d], Iter [%d], Train Loss: %.4f' %
+                      (epoch + 1, 150, i + 1, train_loss/10))
                 train_loss = 0.0
 
+        # train_auc = get_auc(class_pred_list, class_list, draw=False)
+        for index in range(len(seg_list)):
+            train_dice_list.append(dice.forward(seg_pred_list[index], seg_list[index]))
+
+        # class_list, class_pred_list = [], []
+        # seg_list, seg_pred_list = [], []
+
         model.eval()
-        for i, valid_data in enumerate(valid_loader):
-            inputs, labels = valid_data
-            inputs, labels = inputs.to(device), labels.to(device)
+        with torch.no_grad():
+            for i, valid_data in enumerate(valid_loader):
+                inputs, labels = valid_data
+                roi, ece = labels
+                inputs, roi, ece = inputs.to(device), roi.to(device), ece.to(device)
+                ece = torch.argmax(ece, dim=1)
+                ece = ece.long()
 
-            outputs = model(inputs)
+                segmentation_out, classification_out = model(inputs)
 
-            loss = criterion(outputs, labels)
+                loss1 = criterion1(segmentation_out, roi)
+                loss2 = criterion2(classification_out, ece)
+                loss = loss1 + loss2
+                valid_loss += loss.item()
+                valid_loss_list.append(loss.item())
 
-            valid_loss_list.append(loss.item())
-            valid_loss += loss.item()
+                seg_out = BinaryPred(segmentation_out)
+                seg_list.extend(list(torch.squeeze(seg_out)))
+                seg_pred_list.extend(list(torch.squeeze(roi)))
 
-            # TODO:
-            sigmoid_outputs = torch.sigmoid(outputs)
-            label_list.extend(list(labels.cpu().numpy()[..., 0]))
-            pred_list.extend(list(sigmoid_outputs.cpu().detach().numpy()[..., 0]))
-            valid_auc = get_auc(pred_list, label_list, draw=False)
-            valid_auc_list.append(valid_auc)
-            valid_loss_list.append(loss.item())
+                # compute auc
+                # class_list.extend(list(ece.cpu().numpy()[..., 0]))
+                # class_pred_list.extend(list(classification_out.cpu().detach().numpy()[..., 0]))
 
-            if (i + 1) % 10 == 0:
-                print('Epoch [%d / %d], Iter [%d], Valid Loss: %.4f, valid auc: %.4f' %
-                      (epoch + 1, 150, i + 1, valid_loss/10, sum(valid_auc_list)/len(valid_auc_list)))
-                valid_loss = 0.0
 
-        # writer.add_scalars('Train_Val_Loss',
-        #                    {'train_loss': np.mean(train_loss_list), 'val_loss': np.mean(valid_loss_list)}, epoch + 1)
+                if (i + 1) % 10 == 0:
+                    print('Epoch [%d / %d], Iter [%d], Valid Loss: %.4f' %
+                          (epoch + 1, 150, i + 1, valid_loss/10))
+                    valid_loss = 0.0
+
+            # valid_auc = get_auc(class_pred_list, class_list, draw=False)
+            for idx in range(len(seg_list)):
+                valid_dice_list.append(dice.forward(seg_pred_list[idx], seg_list[idx]))
+
+
+        writer.add_scalars('Train_Val_Loss',
+                           {'train_loss': np.mean(train_loss_list), 'val_loss': np.mean(valid_loss_list)}, epoch + 1)
         # writer.add_scalars('Train_Val_Auc',
-        #                    {'train_auc': np.mean(train_auc_list), 'val_auc': np.mean(valid_auc_list)}, epoch + 1)
-        # writer.close()
-
+        #                    {'train_auc': train_auc, 'val_auc': valid_auc}, epoch + 1)
+        writer.add_scalars('Train_Val_Dice',
+                           {'train_dice': torch.mean(torch.stack(train_dice_list)), 'val_dice': torch.mean(torch.stack(valid_dice_list))}, epoch + 1)
+        writer.close()
+        #
         print('Epoch:', epoch + 1, 'Training Loss:', np.mean(train_loss_list), 'Valid Loss:', np.mean(valid_loss_list))
-
+        # print('Training Auc:', round(train_auc, 4), 'Valid Auc:', round(valid_auc, 4))
+        print('Training Dice:', torch.mean(torch.stack(train_dice_list)).cpu().numpy(), 'Valid Dice:', torch.mean(torch.stack(valid_dice_list)).cpu().numpy())
         scheduler.step(np.mean(valid_loss_list))
         early_stopping(np.mean(valid_loss_list), model, save_path=model_save_path)
 
@@ -152,50 +175,65 @@ def Train():
             print("Early stopping")
             break
 
-        # state = {
-        #     'epoch': epoch,
-        #     'model_state_dict': model.state_dict(),
-        #     'optimizer_state_dict': optimizer.state_dict()
-        # }
-        # torch.save(state, PATH)
-    # torch.save(model, model_save_path)
 
 def Test():
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    processor = ImageProcess2D(reverse_channel=False, augment_param=random_2d_augment)
 
-    data_shape = {'input_0': (1, 184, 184), 'output_0': (2,)}
+    data_shape = {'input_0': (1, 184, 184), 'output_0': (1, 184, 184), 'output_1': (2,)}
 
-    test_set = BinaryOneImageOneLabelTest(root_folder=test_folder, data_shape=data_shape)
+    not_roi_info = {'input_0': True, 'output_0': False, 'output_1': False}
+
+    test_set = ImageInImageOutDataSet(root_folder=test_folder,
+                                       data_shape=data_shape,
+                                       not_roi_info=not_roi_info,
+                                       processor=processor)
     test_loader = DataLoader(test_set, batch_size=1, shuffle=True)
 
     # model = torch.load(model_path)
-    model = Unet(in_channels=1, out_channels=1)
+    model = AttenUNetMultiTask2D(in_channels=3, out_channels=1)
     model = model.to(device)
     model.load_state_dict(torch.load(model_path))
     model.eval()
 
+    roi_list = []
+    ece_list = []
+    class_out_list = []
+    binary_seg_list = []
+    test_dice = []
+    dice = Dice()
 
-    label_list = []
-    pred_list = []
-    binary_list = []
     for i, test_data in enumerate(test_loader):
         inputs, labels = test_data
-        inputs, labels = inputs.to(device), labels.to(device)
-        outputs = model(inputs)
-        outputs = torch.sigmoid(outputs)
-        binary_outputs = BinaryPred(outputs)
-        label_list.append(np.squeeze(labels.cpu().numpy())[0])
-        pred_list.append(np.squeeze(outputs.cpu().detach().numpy())[0])
-        binary_list.append(np.squeeze(binary_outputs.cpu().detach().numpy())[0])
+        roi, ece = labels
+        inputs, roi, ece = inputs.to(device), roi.to(device), ece.to(device)
 
-    auc = get_auc(pred_list, label_list)
-    compute_confusion_matrix(binary_list, label_list, model_name='ECE-UNet')
+        seg_out, class_out = model(inputs)
+
+        binary_outputs = BinaryPred(seg_out)
+        roi_list.append(np.squeeze(roi.cpu().numpy()))
+        ece_list.append(ece.cpu().numpy()[0][0])
+
+        binary_seg_list.append(np.squeeze(binary_outputs.cpu().detach().numpy()))
+        class_out_list.append(class_out.cpu().detach().numpy()[0][0])
+
+        # plt.subplot(121)
+        # plt.imshow(torch.squeeze(inputs).cpu().detach().numpy(), cmap='gray')
+        # plt.contour(torch.squeeze(roi).cpu().detach().numpy(), colors='r')
+        # plt.subplot(122)
+        # plt.imshow(torch.squeeze(binary_outputs).cpu().detach().numpy(), cmap='gray')
+        # plt.savefig(os.path.join(image_folder, str(i) + '.jpg'))
+        # plt.close()
+        test_dice.append((dice.forward(np.squeeze(roi), np.squeeze(binary_outputs))).cpu().detach().numpy())
+
+    auc = get_auc(class_out_list, ece_list)
     print(auc)
+    print(sum(test_dice) / len(test_dice))
 
 
 if __name__ == '__main__':
     # data_path = r'/home/zhangyihong/Documents/zhangyihong/Documents/ProstateECE/input_0_output_0/Train'
     # case_list = os.listdir(data_path)
     # print(case_list)
-    Train()
-    # Test()
+    # Train()
+    Test()

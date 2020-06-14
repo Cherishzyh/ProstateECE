@@ -7,13 +7,16 @@ from torch.utils.data import DataLoader
 from tensorboardX import SummaryWriter
 # from pytorchtools import EarlyStopping
 
-from T4T.Utility.Loader import BinaryOneImageOneLabel, BinaryOneImageOneLabelTest
+import matplotlib.pyplot as plt
+
+from T4T.Utility.Loader import ImageInImageOutDataSet, BinaryOneImageOneLabelTest
 from T4T.Utility.ImageProcessor import ImageProcess2D
-# from T4T.Utility.Metric import AUC
 from MeDIT.DataAugmentor import random_2d_augment
 
+from Metric.Metric import Dice
 from Metric.classification_statistics import get_auc, compute_confusion_matrix
-from Model.UNet import Unet
+from Model.AttenUnet import AttenUNet
+
 from FilePath import *
 from DataSet.CheckPoint import EarlyStopping
 
@@ -24,42 +27,45 @@ def BinaryPred(prediction):
     binary_prediction = torch.where(prediction > 0.5, one, zero)
     return binary_prediction
 
+
 def Train():
-    graph_folder = r''
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
     processor = ImageProcess2D(reverse_channel=False, augment_param=random_2d_augment)
 
-    data_shape = {'input_0': (1, 184, 184), 'output_0': (2,)}
+    data_shape = {'input_0': (1, 184, 184), 'output_0': (1, 184, 184)}
+    not_roi_info = {'input_0': True, 'output_0': False}
 
     writer = SummaryWriter(log_dir=graph_folder, comment='Net')
 
-    train_set = BinaryOneImageOneLabel(root_folder=input_0_output_0_train,
-                                     data_shape=data_shape,
-                                     processor=processor)
+    train_set = ImageInImageOutDataSet(root_folder=train_folder,
+                                       data_shape=data_shape,
+                                       not_roi_info=not_roi_info,
+                                       processor=processor)
 
-    valid_set = BinaryOneImageOneLabel(root_folder=input_0_output_0_validation,
-                                     data_shape=data_shape,
-                                     processor=processor)
+    valid_set = ImageInImageOutDataSet(root_folder=validation_folder,
+                                       not_roi_info=not_roi_info,
+                                       data_shape=data_shape,
+                                       processor=processor)
 
     train_loader = DataLoader(train_set, batch_size=12, shuffle=True)
 
-    valid_loader = DataLoader(valid_set, batch_size=12, shuffle=True)
+    valid_loader = DataLoader(valid_set, batch_size=4, shuffle=True)
 
-    model = Unet(in_channels=1, out_channels=1)
+    model = UNet(in_channels=1, out_channels=1)
     model = model.to(device)
 
     lr = 0.001
     train_loss = 0.0
     valid_loss = 0.0
-    criterion = nn.BCEWithLogitsLoss()
+    criterion = nn.BCELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', patience=20, factor=0.5, verbose=True)
     early_stopping = EarlyStopping(patience=100, verbose=True)
-
+    dice = Dice()
     for epoch in range(150):
         train_loss_list, valid_loss_list= [], []
-        train_auc_list, valid_auc_list = [], []
+        train_dice_list, valid_dice_list = [], []
         label_list, pred_list = [], []
 
         model.train()
@@ -76,50 +82,62 @@ def Train():
             loss.backward()
             optimizer.step()
 
-            # TODO:
-            sigmoid_outputs = torch.sigmoid(outputs)
-            label_list.extend(list(labels.cpu().numpy()[..., 0]))
-            pred_list.extend(list(sigmoid_outputs.cpu().detach().numpy()[..., 0]))
-            train_auc = get_auc(pred_list, label_list, draw=False)
+            outputs = BinaryPred(outputs)
+            label_list.extend(list(torch.squeeze(labels)))
+            pred_list.extend(list(torch.squeeze(outputs)))
+            train_dice = 0
+            for index in range(len(label_list)):
+                train_dice += dice.forward(pred_list[index], label_list[index])
+                # plt.subplot(121)
+                # plt.imshow(label_list[index].cpu().detach().numpy(), cmap='gray')
+                # plt.subplot(122)
+                # plt.imshow(pred_list[index].cpu().detach().numpy(), cmap='gray')
+                # plt.show()
+            train_dice = train_dice / len(label_list)
 
             train_loss_list.append(loss.item())
-            train_auc_list.append(train_auc)
+            train_dice_list.append(train_dice)
             train_loss += loss.item()
 
-            if (i + 1) % 10 == 0:
-                print('Epoch [%d / %d], Iter [%d], Train Loss: %.4f, Train auc: %.4f' %
-                      (epoch + 1, 150, i + 1, train_loss/10, sum(train_auc_list)/len(train_auc_list)))
+            if (i + 1) % 1 == 0:
+                print('Epoch [%d / %d], Iter [%d], Train Loss: %.4f, Train Dice: %.4f' %
+                      (epoch + 1, 150, i + 1, train_loss/10, sum(train_dice_list)/len(train_dice_list)))
                 train_loss = 0.0
 
         model.eval()
-        for i, valid_data in enumerate(valid_loader):
-            inputs, labels = valid_data
-            inputs, labels = inputs.to(device), labels.to(device)
+        with torch.no_grad():
+            for i, valid_data in enumerate(valid_loader):
+                inputs, labels = valid_data
+                inputs, labels = inputs.to(device), labels.to(device)
 
-            outputs = model(inputs)
+                outputs = model(inputs)
 
-            loss = criterion(outputs, labels)
+                loss = criterion(outputs, labels)
 
-            valid_loss_list.append(loss.item())
-            valid_loss += loss.item()
+                outputs = BinaryPred(outputs)
+                valid_loss_list.append(loss.item())
+                valid_loss += loss.item()
 
-            # TODO:
-            sigmoid_outputs = torch.sigmoid(outputs)
-            label_list.extend(list(labels.cpu().numpy()[..., 0]))
-            pred_list.extend(list(sigmoid_outputs.cpu().detach().numpy()[..., 0]))
-            valid_auc = get_auc(pred_list, label_list, draw=False)
-            valid_auc_list.append(valid_auc)
-            valid_loss_list.append(loss.item())
+                label_list.extend(list(torch.squeeze(labels)))
+                pred_list.extend(list(torch.squeeze(outputs)))
 
-            if (i + 1) % 10 == 0:
-                print('Epoch [%d / %d], Iter [%d], Valid Loss: %.4f, valid auc: %.4f' %
-                      (epoch + 1, 150, i + 1, valid_loss/10, sum(valid_auc_list)/len(valid_auc_list)))
-                valid_loss = 0.0
+                valid_dice = 0
+                for index in range(len(label_list)):
+                    valid_dice += dice.forward(pred_list[index], label_list[index])
+                valid_dice = valid_dice / len(label_list)
+
+                valid_dice_list.append(valid_dice)
+                valid_loss_list.append(loss.item())
+
+                if (i + 1) % 1 == 0:
+                    print('Epoch [%d / %d], Iter [%d], Valid Loss: %.4f, valid Dice: %.4f' %
+                          (epoch + 1, 150, i + 1, valid_loss/10, sum(valid_dice_list)/len(valid_dice_list)))
+                    valid_loss = 0.0
 
         writer.add_scalars('Train_Val_Loss',
                            {'train_loss': np.mean(train_loss_list), 'val_loss': np.mean(valid_loss_list)}, epoch + 1)
-        writer.add_scalars('Train_Val_Auc',
-                           {'train_auc': np.mean(train_auc_list), 'val_auc': np.mean(valid_auc_list)}, epoch + 1)
+        writer.add_scalars('Train_Val_Dice',
+                           {'train_auc': torch.mean(torch.stack(train_dice_list)), 'val_auc': torch.mean(torch.stack(valid_dice_list))}, epoch + 1)
         writer.close()
 
         print('Epoch:', epoch + 1, 'Training Loss:', np.mean(train_loss_list), 'Valid Loss:', np.mean(valid_loss_list))
@@ -131,45 +149,47 @@ def Train():
             print("Early stopping")
             break
 
-        # state = {
-        #     'epoch': epoch,
-        #     'model_state_dict': model.state_dict(),
-        #     'optimizer_state_dict': optimizer.state_dict()
-        # }
-        # torch.save(state, PATH)
-    # torch.save(model, model_save_path)
-
 def Test():
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
-    data_shape = {'input_0': (1, 184, 184), 'output_0': (2,)}
+    data_shape = {'input_0': (1, 184, 184), 'output_0': (1, 184, 184)}
+    not_roi_info = {'input_0': True, 'output_0': False}
 
-    test_set = BinaryOneImageOneLabelTest(root_folder=test_folder, data_shape=data_shape)
+    # processor = ImageProcess2D(reverse_channel=False, augment_param=random_2d_augment)
+    test_set = ImageInImageOutDataSet(root_folder=test_folder,
+                                    data_shape=data_shape,
+                                    not_roi_info=not_roi_info)
     test_loader = DataLoader(test_set, batch_size=1, shuffle=True)
 
     # model = torch.load(model_path)
-    model = Unet(in_channels=1, out_channels=1)
+    model = AttenUNet(in_channels=1, out_channels=1)
     model = model.to(device)
     model.load_state_dict(torch.load(model_path))
     model.eval()
+    dice = Dice()
+    test_dice = []
+    np_dice = []
+    with torch.no_grad():
+        for i, test_data in enumerate(test_loader):
+            inputs, labels = test_data
+            inputs, labels = inputs.to(device), labels.to(device)
+            outputs = model(inputs)
+            outputs = BinaryPred(outputs)
 
+            test_dice.append(dice.forward(torch.squeeze(outputs), torch.squeeze(labels)))
+            plt.subplot(121)
+            plt.imshow(torch.squeeze(inputs).cpu().detach().numpy(), cmap='gray')
+            plt.contour(torch.squeeze(labels).cpu().detach().numpy(), colors='r')
+            plt.subplot(122)
+            plt.imshow(torch.squeeze(outputs).cpu().detach().numpy(), cmap='gray')
+            plt.savefig(os.path.join(image_folder, str(i)+'.jpg'))
+            plt.close()
 
-    label_list = []
-    pred_list = []
-    binary_list = []
-    for i, test_data in enumerate(test_loader):
-        inputs, labels = test_data
-        inputs, labels = inputs.to(device), labels.to(device)
-        outputs = model(inputs)
-        outputs = torch.sigmoid(outputs)
-        binary_outputs = BinaryPred(outputs)
-        label_list.append(np.squeeze(labels.cpu().numpy())[0])
-        pred_list.append(np.squeeze(outputs.cpu().detach().numpy())[0])
-        binary_list.append(np.squeeze(binary_outputs.cpu().detach().numpy())[0])
-
-    auc = get_auc(pred_list, label_list)
-    compute_confusion_matrix(binary_list, label_list, model_name='ECE-UNet')
-    print(auc)
+        print(sum(test_dice)/len(test_dice))
+        for index in range(len(test_dice)):
+            np_dice.append(test_dice[index].cpu().detach().numpy())
+        plt.hist(np_dice)
+        plt.show()
 
 
 if __name__ == '__main__':

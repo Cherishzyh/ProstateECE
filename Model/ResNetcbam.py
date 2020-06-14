@@ -3,6 +3,9 @@ import torch.nn as nn
 import math
 import torch.utils.model_zoo as model_zoo
 
+import numpy as np
+import matplotlib.pyplot as plt
+
 
 __all__ = ['ResNet', 'resnet18_cbam', 'resnet34_cbam', 'resnet50_cbam', 'resnet101_cbam',
            'resnet152_cbam']
@@ -29,9 +32,9 @@ class ChannelAttention(nn.Module):
         self.avg_pool = nn.AdaptiveAvgPool2d(1)
         self.max_pool = nn.AdaptiveMaxPool2d(1)
 
-        self.fc1 = nn.Conv2d(in_planes, in_planes // 16, 1, bias=False)
+        self.fc1 = nn.Conv2d(in_planes, in_planes // ratio, 1, bias=False)
         self.relu1 = nn.ReLU()
-        self.fc2 = nn.Conv2d(in_planes // 16, in_planes, 1, bias=False)
+        self.fc2 = nn.Conv2d(in_planes // ratio, in_planes, 1, bias=False)
 
         self.sigmoid = nn.Sigmoid()
 
@@ -39,6 +42,7 @@ class ChannelAttention(nn.Module):
         avg_out = self.fc2(self.relu1(self.fc1(self.avg_pool(x))))
         max_out = self.fc2(self.relu1(self.fc1(self.max_pool(x))))
         out = avg_out + max_out
+
         return self.sigmoid(out)
 
 
@@ -159,8 +163,10 @@ class ResNet(nn.Module):
         self.layer2 = self._make_layer(block, 128, layers[1], stride=2)
         self.layer3 = self._make_layer(block, 256, layers[2], stride=2)
         self.layer4 = self._make_layer(block, 512, layers[3], stride=2)
-        self.avgpool = nn.AvgPool2d(7, stride=1)
-        self.fc = nn.Linear(512 * block.expansion, num_classes)
+        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
+        self.fc1 = nn.Linear(512 * block.expansion, num_classes)
+        self.fc2 = nn.Linear(num_classes, 1)
+        self.sigmoid = nn.Sigmoid()
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -199,8 +205,10 @@ class ResNet(nn.Module):
         x = self.layer4(x)
 
         x = self.avgpool(x)
-        x = x.view(x.size(0), -1)
-        x = self.fc(x)
+        x = torch.flatten(x, 1)
+        x = self.fc1(x)
+        x = self.fc2(x)
+        # x = self.sigmoid(x)
 
         return x
 
@@ -229,7 +237,7 @@ def resnet34_cbam(pretrained=False, **kwargs):
     model = ResNet(BasicBlock, [3, 4, 6, 3], **kwargs)
     if pretrained:
         pretrained_state_dict = model_zoo.load_url(model_urls['resnet34'])
-        now_state_dict        = model.state_dict()
+        now_state_dict = model.state_dict()
         now_state_dict.update(pretrained_state_dict)
         model.load_state_dict(now_state_dict)
     return model
@@ -244,7 +252,7 @@ def resnet50_cbam(pretrained=False, **kwargs):
     model = ResNet(Bottleneck, [3, 4, 6, 3], **kwargs)
     if pretrained:
         pretrained_state_dict = model_zoo.load_url(model_urls['resnet50'])
-        now_state_dict        = model.state_dict()
+        now_state_dict = model.state_dict()
         now_state_dict.update(pretrained_state_dict)
         model.load_state_dict(now_state_dict)
     return model
@@ -278,3 +286,4 @@ def resnet152_cbam(pretrained=False, **kwargs):
         now_state_dict.update(pretrained_state_dict)
         model.load_state_dict(now_state_dict)
     return model
+
