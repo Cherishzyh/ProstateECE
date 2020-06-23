@@ -50,13 +50,13 @@ def Path(case_folder):
 
 if __name__ == '__main__':
     # case_folder = r'C:\Users\ZhangYihong\Desktop\try\BAO ZHENG LI'
-    case_folder = r'X:\PrcoessedData\ProstateCancerECE\CSJ^chen shi jie'
-    RegistrateBySpacing(case_folder)
-    # case_list = os.listdir(process_folder)
-    # for case in case_list:
-    #     case_folder = os.path.join(process_folder, case)
-    #     try:
-    #         RegistrateBySpacing(case_folder)
-    #     except Exception as e:
-    #         print(case, e)
+    # case_folder = r'X:\PrcoessedData\ProstateCancerECE\CSJ^chen shi jie'
+    # RegistrateBySpacing(case_folder)
+    case_list = os.listdir(process_folder)
+    for case in case_list:
+        case_folder = os.path.join(process_folder, case)
+        try:
+            RegistrateBySpacing(case_folder)
+        except Exception as e:
+            print(case, e)
     # Path(case_folder)
