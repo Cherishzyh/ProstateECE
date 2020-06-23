@@ -15,7 +15,7 @@ from MeDIT.SaveAndLoad import LoadNiiData
 from MeDIT.Visualization import Imshow3DArray
 from MeDIT.Normalize import Normalize01
 
-from FilePath import process_folder, resample_folder, desktop_path
+# from FilePath import process_folder, resample_folder, desktop_path
 
 
 def NearTrueB(b_list):

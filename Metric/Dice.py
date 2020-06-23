@@ -11,7 +11,6 @@
 # Maximum symmetric surface distance (MSD) 1
 
 from enum import Enum
-from medpy import metric
 import numpy as np
 import SimpleITK as sitk
 import pandas as pd

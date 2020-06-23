@@ -9,7 +9,7 @@ from MeDIT.SaveAndLoad import LoadNiiData
 from MeDIT.Normalize import Normalize01
 from MeDIT.Visualization import Imshow3DArray
 
-from FilePath import csv_path, resample_folder, cnn_folder, desktop_path, input_0_output_0_path
+from FilePath import *
 
 info = pd.read_csv(csv_path, usecols=['case', 'pECE'], index_col=['case'])
 
@@ -38,13 +38,12 @@ def CropRoiData(roi_data, crop_shape, slice_index, center):
 
 # MakeH5()
 def WriteH5(data_folder, save_path):
-    from DataProcess.MaxRoi import SelectMaxRoiSlice, GetRoiCenter, KeepLargest
+    from ECEDataProcess.DataProcess.MaxRoi import SelectMaxRoiSlice, GetRoiCenter, KeepLargest
     case_list = os.listdir(data_folder)
     crop_shape = (1, 280, 280)
 
     for case in case_list:
         # path
-        case = 'XZP^xiang zheng ping'
         case_path = os.path.join(data_folder, case)
         t2_path = os.path.join(case_path, 't2.nii')
         roi_path = os.path.join(case_path, 'roi.nii')
@@ -78,19 +77,16 @@ def WriteH5(data_folder, save_path):
         dwi_slice_3d = dwi_slice[np.newaxis, ...]
         adc_slice_3d = adc_slice[np.newaxis, ...]
         roi_slice_3d = roi_slice[np.newaxis, ...]
-        # store_path = r'C:\Users\ZhangYihong\Desktop\try\image'
 
         dataname = case + '_slice' + str(slice) + '.h5'
         datapath = os.path.join(save_path, dataname)
 
         with h5py.File(datapath, 'w') as f:
             f['input_0'] = t2_slice_3d
-            f['input_1'] = dwi_slice_3d
-            f['input_2'] = adc_slice_3d
+            # f['input_1'] = dwi_slice_3d
+            # f['input_2'] = adc_slice_3d
             f['output_0'] = roi_slice_3d
             f['output_1'] = ece
-
-        break
 
 
 def TestWhiteH5():
@@ -150,7 +146,7 @@ def ShowH5():
 
 
 def Checkb():
-    from DataProcess.SelectDWI import NearTrueB
+    from ECEDataProcess.DataProcess.SelectDWI import NearTrueB
     case_list = ['CSF^chen song fu', 'CYX^chen yu xiang', 'DRJ^dai ru jiang', 'DSB^dai song bo ^^6698-7', 'GJD^guo jin dong',
                  'GU SI KANG', 'HGH^he gong huang', 'HGH^hu guo hua', 'JIANG HONG GEN', 'JLS^jiang li shan', 'LEC^liu er chang ^^6698-13',
                  'LHP^lu hao pei ^^6698-40', 'LJJ^lu qi jia', 'LJY^liu jia yan', 'LU JI SHUN', 'LYZ^liu yin zhong','LZW^li zhong wei',
@@ -188,7 +184,7 @@ def Checkb():
 
 
 def CheckRoiNum(data_folder):
-    from DataProcess.MaxRoi import KeepLargest
+    from ECEDataProcess.DataProcess.MaxRoi import KeepLargest
     case_list = os.listdir(data_folder)
     for case in case_list:
         volume_list = []
@@ -236,7 +232,7 @@ def Show():
 
 if __name__ == '__main__':
     data_folder = resample_folder
-    save_path =cnn_folder
+    save_path = input_0_output_1_path
     WriteH5(data_folder, save_path)
     # TestWhiteH5()
 

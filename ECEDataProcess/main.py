@@ -105,10 +105,10 @@ class AutoProcessor:
             shutil.rmtree(os.path.join(self.process_folder, case))
 
     def IterativeCase(self):
-        print('Loading: Segment Model')
+        print('Loading: Segment MyModel')
         self.prostate_segmentor.LoadConfigAndModel(self.segment_model_folder)
 
-        print('Loading: Detection Model')
+        print('Loading: Detection MyModel')
         self.pca_detector.LoadConfigAndModel(self.detect_model_folder)
 
         self.log = CustomerCheck(os.path.join(self.failed_folder, 'failed_log.csv'), patient=1, data={'State': [], 'Info': []})

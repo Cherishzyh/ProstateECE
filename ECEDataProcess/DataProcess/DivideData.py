@@ -5,8 +5,8 @@ import numpy as np
 
 from MeDIT.SaveAndLoad import LoadH5
 
-from FilePath import process_folder, cnn_folder, Train_path, Test_path, Validation_path, input_0_output_0_path
-from DataProcess.SelectDWI import NearTrueB
+from FilePath import *
+from ECEDataProcess.DataProcess.SelectDWI import NearTrueB
 # 正负样本比例1:3
 # b值800的在test
 
@@ -65,16 +65,17 @@ def DivideH5Data(folder, des_folder):
         case_path = os.path.join(folder, case)
         des_path = os.path.join(des_folder, case)
         if not os.path.isdir(case_path):
-            ece = LoadH5(case_path, tag=['output_1'], data_type=np.uint8)
+            case_name = case[:case.index('.npy')]
+            ece = info.loc[case_name, 'pECE']
 
-            if all(ece == np.array([0, 1])):
-                if no_ece_number == 90:
+            if all(ece == np.array([1])):
+                if no_ece_number == 10:
                     continue
                 else:
                     no_ece_number += 1
                     shutil.move(case_path, des_path)
-            elif all(ece == np.array([1, 0])):
-                if ece_number == 31:
+            elif all(ece == np.array([0])):
+                if ece_number == 30:
                     continue
                 else:
                     ece_number += 1
@@ -97,6 +98,7 @@ def DivideInput0Data(folder, des_folder, dataset=''):
         else:
             print(case)
 
+
 def ComputeV(folder):
     case_list = os.listdir(folder)
     volume_list = []
@@ -106,7 +108,45 @@ def ComputeV(folder):
         volume_list.append(np.sum(label))
     return sum(volume_list) / len(volume_list)
 
+
+def Divide(des_folder, folder):
+    des_train_folder = os.path.join(des_folder, 'Train')
+    train_folder = os.path.join(folder, 'Train')
+
+    des_validation_folder = os.path.join(des_folder, 'validation')
+    validation_folder = os.path.join(folder, 'validation')
+
+    des_test_folder = os.path.join(des_folder, 'Test')
+    test_folder = os.path.join(folder, 'Test')
+
+    case_list = os.listdir(des_folder)
+
+    train_case_list = os.listdir(train_folder)
+    validation_case_list = os.listdir(validation_folder)
+    test_case_list = os.listdir(test_folder )
+
+    for case in case_list:
+        if case in train_case_list:
+            shutil.move(os.path.join(des_folder, case), os.path.join(des_train_folder, case))
+        elif case in validation_case_list:
+            shutil.move(os.path.join(des_folder, case), os.path.join(des_validation_folder, case))
+        elif case in test_case_list:
+            shutil.move(os.path.join(des_folder, case), os.path.join(des_test_folder, case))
+        else:
+            print(case)
+
+
+def CopyData(des_folder, folder):
+    case_folder = r'/home/zhangyihong/Documents/ProstateECE/NPYPreTrain/ProstateSlice/PreValid'
+    case_list = os.listdir(case_folder)
+    for case in case_list:
+        case_path = os.path.join(folder, case)
+        des_case_path = os.path.join(des_folder, case)
+        shutil.move(case_path, des_case_path)
+
+
 if __name__ == '__main__':
+    import pandas as pd
     # b_value = ['0', '50', '700', '750', '1400', '1500']
     # case_list = os.listdir(process_folder)
     # for case in case_list:
@@ -115,11 +155,19 @@ if __name__ == '__main__':
     #         if float(b) < 1200:
     #             print(case)
 
-    # DivideH5Data(cnn_folder, Validation_path)
-    DivideInput0Data(cnn_folder, input_0_output_0_path, dataset='Test')
+    # csv_path = r'/home/zhangyihong/Documents/ProstateECE/NPYPreTrain/csv/ece.csv'
+    cnn_folder = r'/home/zhangyihong/Documents/ProstateECE/NPYPreTrain/RoiSlice/Test'
+    pre_train_folder = r'/home/zhangyihong/Documents/ProstateECE/NPYPreTrain/RoiSlice/PreValid'
+    #
+    # info = pd.read_csv(csv_path, usecols=['case', 'pECE'], index_col=['case'])
+    #
+    # DivideH5Data(cnn_folder, pre_train_folder)
+    # DivideInput0Data(cnn_folder, input_0_output_0_path, dataset='Test')
 
     # ece_number, no_ece_number = StatisticsECE(Test_path)
     # print(ece_number, no_ece_number)
 
     # aver = ComputeV(Test_path)
     # print(aver)
+    # Divide(cnn_folder, pre_train_folder)
+    CopyData(pre_train_folder, cnn_folder)

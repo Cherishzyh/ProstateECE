@@ -1,22 +1,53 @@
-raw_folder = r'X:\RawData\ProstateCancerECE\PCa-RP'
-process_folder = r'X:\PrcoessedData\ProstateCancerECE'
-store_folder = r'X:\StoreFormatData\ProstateCancerECE'
-cnn_folder = r'X:\CNNFormatData\ProstateCancerECE\AllData'
-input_0_output_0_path = r'X:\CNNFormatData\ProstateCancerECE\input_0_output_0'
-
-csv_path = r'X:\StoreFormatData\ProstateCancerECE\ECE-ROI.csv'
-resample_folder = r'X:\StoreFormatData\ProstateCancerECE\ResampleData'
-failed_folder = r'X:\StoreFormatData\ProstateCancerECE\FailedData'
-
-desktop_path = r'C:\Users\ZhangYihong\Desktop\try'
+# Input_0_Output_0
+# train_folder = r'/home/zhangyihong/Documents/zhangyihong/Documents/ProstateECE/input_0_output_0/Train'
+# validation_folder = r'/home/zhangyihong/Documents/zhangyihong/Documents/ProstateECE/input_0_output_0/Validation'
+# test_folder = r'/home/zhangyihong/Documents/zhangyihong/Documents/ProstateECE/input_0_output_0/Test'
+#
+# model_save_path = r'/home/zhangyihong/Documents/zhangyihong/Documents/ProstateECE/input_0_output_0/AttentionUnet'
+# model_path = r'/home/zhangyihong/Documents/zhangyihong/Documents/ProstateECE/input_0_output_0/AttentionUnet/checkpoint.pt'
+#
+# graph_folder = r'/home/zhangyihong/Documents/zhangyihong/Documents/ProstateECE/input_0_output_0/AttentionUnet//logs/'
 
 
-train_folder = r'X:\CNNFormatData\ProstateCancerECE\AllData\Train'
-validation_folder = r'X:\CNNFormatData\ProstateCancerECE\AllData\Validation'
-test_folder = r'X:\CNNFormatData\ProstateCancerECE\AllData\Test'
+# Input_0_Output_1
+# train_folder = r'/home/zhangyihong/Documents/zhangyihong/Documents/ProstateECE/input_0_output_1/Train'
+# validation_folder = r'/home/zhangyihong/Documents/zhangyihong/Documents/ProstateECE/input_0_output_1/Validation'
+# test_folder = r'/home/zhangyihong/Documents/zhangyihong/Documents/ProstateECE/input_0_output_1/Test'
+#
+# model_save_path = r'/home/zhangyihong/Documents/zhangyihong/Documents/ProstateECE/input_0_output_1/MyModel'
+# model_path = r'/home/zhangyihong/Documents/zhangyihong/Documents/ProstateECE/input_0_output_1/MyModel/checkpoint.pt'
+#
+# graph_folder = r'/home/zhangyihong/Documents/zhangyihong/Documents/ProstateECE/input_0_output_1/MyModel/logs/'
 
-input_0_output_0_train = r'X:\CNNFormatData\ProstateCancerECE\input_0_output_0\Train'
-input_0_output_0_validation = r'X:\CNNFormatData\ProstateCancerECE\input_0_output_0\Validation'
-input_0_output_0_test = r'X:\CNNFormatData\ProstateCancerECE\input_0_output_0\Test'
+# All Data
+# train_folder = r'/home/zhangyihong/Documents/zhangyihong/Documents/ProstateECE/AllData/Train'
+# validation_folder = r'/home/zhangyihong/Documents/zhangyihong/Documents/ProstateECE/AllData/Validation'
+# test_folder = r'/home/zhangyihong/Documents/zhangyihong/Documents/ProstateECE/AllData/Test'
+#
+# model_save_path = r'/home/zhangyihong/Documents/zhangyihong/Documents/ProstateECE/AllData/MyModel'
+# model_path = r'/home/zhangyihong/Documents/zhangyihong/Documents/ProstateECE/AllData/MyModel/EarlyStopping/checkpoint.pt'
+#
+# graph_folder = r'/home/zhangyihong/Documents/zhangyihong/Documents/ProstateECE/AllData/MyModel/AttResUNet/logs'
 
 
+# Input_0_output_roi
+# train_folder = r'/home/zhangyihong/Documents/zhangyihong/Documents/ProstateECE/input_0_output_roi/Train'
+# validation_folder = r'/home/zhangyihong/Documents/zhangyihong/Documents/ProstateECE/input_0_output_roi/Validation'
+# test_folder = r'/home/zhangyihong/Documents/zhangyihong/Documents/ProstateECE/input_0_output_roi/Test'
+#
+# model_save_path = r'/home/zhangyihong/Documents/zhangyihong/Documents/ProstateECE/input_0_output_roi/AttentionUnet'
+# model_path = r'/home/zhangyihong/Documents/zhangyihong/Documents/ProstateECE/input_0_output_roi//AttentionUnet/checkpoint.pt'
+#
+# graph_folder = r'/home/zhangyihong/Documents/zhangyihong/Documents/ProstateECE/input_0_output_roi/AttentionUnet//logs/'
+# image_folder = r'/home/zhangyihong/Documents/zhangyihong/Documents/ProstateECE/input_0_output_roi/AttentionUnet/image'
+
+# Input_0_output_roi
+train_folder = r'/home/zhangyihong/Documents/zhangyihong/Documents/ProstateECE/input_dwi_output_roi/Train'
+validation_folder = r'/home/zhangyihong/Documents/zhangyihong/Documents/ProstateECE/input_dwi_output_roi/Validation'
+test_folder = r'/home/zhangyihong/Documents/zhangyihong/Documents/ProstateECE/input_dwi_output_roi/Test'
+
+model_save_path = r'/home/zhangyihong/Documents/zhangyihong/Documents/ProstateECE/input_dwi_output_roi/MyModel'
+model_path = r'/home/zhangyihong/Documents/zhangyihong/Documents/ProstateECE/input_dwi_output_roi/MyModel/checkpoint.pt'
+
+graph_folder = r'/home/zhangyihong/Documents/zhangyihong/Documents/ProstateECE/input_dwi_output_roi/MyModel/logs/'
+image_folder = r'/home/zhangyihong/Documents/zhangyihong/Documents/ProstateECE/input_dwi_output_roi/MyModel/image'
