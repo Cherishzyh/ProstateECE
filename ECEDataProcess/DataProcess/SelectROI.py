@@ -200,14 +200,6 @@ def test():
     Imshow3DArray(Normalize01(t2), roi=[Normalize01(new_mask1), Normalize01(new_mask2)])
 
 
-def ShowMuliROI():
-    data_folder = r'X:\PrcoessedData\ProstateCancerECE'
-    case_list = os.listdir(data_folder)
-    for case in case_list:
-        case_path = os.path.join(data_folder, case)
-        if os.path.exists(os.path.join(case_path, 'roi0.nii')):
-            print(case)
-
 if __name__ == '__main__':
     # SelectRoi()
     # for case in sorted(os.listdir(process_folder)):
@@ -216,6 +208,5 @@ if __name__ == '__main__':
     #     if not os.path.exists(roi_path):
     #         print(case)
     # test()
-    # MultiRoi()
-    ShowMuliROI()
+    MultiRoi()
 

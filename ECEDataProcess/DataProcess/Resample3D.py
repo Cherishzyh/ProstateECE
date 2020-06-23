@@ -34,7 +34,7 @@ def Normalize():
         SaveNiiImage(os.path.join(store_case_folder, 'normalize_roi.nii'), roi_array)
         if os.path.exists(os.path.join(case_folder, 'normalize_roi.nii')):
             os.remove(os.path.join(case_folder, 'normalize_roi.nii'))
-#
+
 
 # Normalize()
 
@@ -70,6 +70,7 @@ def ResampleData():
 
     resampler = Resampler()
     for case in os.listdir(root_folder):
+        case = 'CSJ^chen shi jie'
         case_folder = os.path.join(root_folder, case)
 
         if not os.path.isdir(case_folder):
@@ -101,7 +102,7 @@ def ResampleData():
         resampler.ResizeSipmleITKImage(roi_image, is_roi=True, expected_resolution=[0.5, 0.5, -1],
                                        store_path=os.path.join(dest_case_folder, 'roi.nii'))
         shutil.copy(os.path.join(case_folder, 'roi.csv'), os.path.join(dest_case_folder, 'roi.csv'),)
-
+        break
 
 # ResampleData()
 
@@ -131,7 +132,7 @@ def TestResampleData():
     # Imshow3DArray(Normalize01(adc))
 
 
-# TestResampleData()
+TestResampleData()
 
 
 ########################################################
