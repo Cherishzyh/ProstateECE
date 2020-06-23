@@ -43,6 +43,10 @@ class ChannelAttention(nn.Module):
         max_out = self.fc2(self.relu1(self.fc1(self.max_pool(x))))
         out = avg_out + max_out
 
+        # plt.imshow(out.sigmoid().cpu().detach().numpy()[0, 0, ...], cmap='gray')
+        # plt.title('CA')
+        # plt.show()
+
         return self.sigmoid(out)
 
 
@@ -61,6 +65,11 @@ class SpatialAttention(nn.Module):
         max_out, _ = torch.max(x, dim=1, keepdim=True)
         x = torch.cat([avg_out, max_out], dim=1)
         x = self.conv1(x)
+
+        # plt.imshow(x.sigmoid().cpu().detach().numpy()[0, 0, ...], cmap='gray')
+        # plt.title('SP')
+        # plt.show()
+
         return self.sigmoid(x)
 
 
@@ -144,6 +153,11 @@ class Bottleneck(nn.Module):
             residual = self.downsample(x)
 
         out += residual
+
+        # plt.imshow(out.sigmoid().cpu().detach().numpy()[0, 0, ...], cmap='gray')
+        # plt.title('Resblock')
+        # plt.show()
+
         out = self.relu(out)
 
         return out
@@ -194,9 +208,19 @@ class ResNet(nn.Module):
         return nn.Sequential(*layers)
 
     def forward(self, x):
+        # plt.imshow(x.sigmoid().cpu().detach().numpy()[0, 0, ...], cmap='gray')
+        # plt.title('input')
+        # plt.show()
+
         x = self.conv1(x)
+
+        # plt.imshow(x.sigmoid().cpu().detach().numpy()[0, 0, ...], cmap='gray')
+        # plt.title('conv1')
+        # plt.show()
+
         x = self.bn1(x)
         x = self.relu(x)
+
         x = self.maxpool(x)
 
         x = self.layer1(x)

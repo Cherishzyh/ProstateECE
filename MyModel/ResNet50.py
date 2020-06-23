@@ -129,7 +129,7 @@ class ResNet(nn.Module):
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         self.fc1 = nn.Linear(512 * block.expansion, num_classes)
         self.fc2 = nn.Linear(num_classes, 1)
-        self.sigmiod = nn.Sigmoid()
+        # self.softmax = nn.Softmax(dim=1)
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -170,24 +170,29 @@ class ResNet(nn.Module):
         return nn.Sequential(*layers)
 
     def forward(self, x):
+        feature_map = {}
         x = self.conv1(x)
-        self.feature = x
+        feature_map['conv1'] = x.sigmoid()
         x = self.bn1(x)
         x = self.relu(x)
         x = self.maxpool(x)
 
         x = self.layer1(x)
+        feature_map['layer1'] = x.sigmoid()
         x = self.layer2(x)
+        feature_map['layer2'] = x.sigmoid()
         x = self.layer3(x)
+        feature_map['layer3'] = x.sigmoid()
         x = self.layer4(x)
+        feature_map['layer4'] = x.sigmoid()
 
         x = self.avgpool(x)
         x = torch.flatten(x, 1)
         x = self.fc1(x)
         x = self.fc2(x)
-        x = self.sigmiod(x)
+        # x = self.softmax(x)
 
-        return x
+        return x, feature_map
 
 
 if __name__ == '__main__':
