@@ -22,7 +22,7 @@ class EarlyStopping:
         self.val_loss_min = np.Inf
         self.delta = delta
 
-    def __call__(self, val_loss, model, save_path, evaluation, save_name):
+    def __call__(self, val_loss, model, save_path, evaluation=min, save_name='checkpoint.pt'):
 
         if evaluation == min:
             score = -val_loss

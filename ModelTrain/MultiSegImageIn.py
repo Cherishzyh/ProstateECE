@@ -1,6 +1,7 @@
 import os
 import cv2
 import numpy as np
+import shutil
 import matplotlib.pyplot as plt
 
 
@@ -18,12 +19,13 @@ from MeDIT.Normalize import Normalize01
 from DataSet.CheckPoint import EarlyStopping
 
 from MyModel.MultiTaskModel2 import MultiSegModel
-from NPYFilePath import *
-from Metric.classification_statistics import get_auc, draw_roc
-
+from DataSet.MyDataLoader import LoadTVData, LoadTestData
+from NPYFilePath import data_folder
+from Metric.Loss import BCEFocalLoss
 
 device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
 
+data_folder = r'/home/zhangyihong/Documents/ProstateECE/NPYPreTrain'
 model_folder = r'/home/zhangyihong/Documents/ProstateECE/Model/MultiSegmentation'
 model_path = r'/home/zhangyihong/Documents/ProstateECE/Model/MultiSegmentation/checkpoint.pt'
 graph_path = r'/home/zhangyihong/Documents/ProstateECE/Model/MultiSegmentation/logs'
@@ -36,75 +38,21 @@ def BinaryPred(prediction):
     return binary_prediction
 
 
-def LoadTVData(is_test=False):
-    if is_test:
-        train_dataset = DataManager()
-        validation_dataset = DataManager()
+def ClearGraphPath():
+    if not os.path.exists(graph_path):
+        os.mkdir(graph_path)
     else:
-        train_dataset = DataManager(random_2d_augment)
-        validation_dataset = DataManager(random_2d_augment)
-
-    ###########################################################
-    train_dataset.AddOne(Image2D(train_t2_folder, shape=(184, 184)))
-    train_dataset.AddOne(Image2D(train_dwi_folder, shape=(184, 184)))
-    train_dataset.AddOne(Image2D(train_adc_folder, shape=(184, 184)))
-
-    # train_dataset.AddOne(Feature(csv_folder), is_input=False)
-    train_dataset.AddOne(Image2D(train_roi_folder, shape=(184, 184), is_roi=True), is_input=False)
-    train_dataset.AddOne(Image2D(train_prostate_folder, shape=(184, 184), is_roi=True), is_input=False)
-
-    ###########################################################
-    validation_dataset.AddOne(Image2D(validation_t2_folder, shape=(184, 184)))
-    validation_dataset.AddOne(Image2D(validation_dwi_folder, shape=(184, 184)))
-    validation_dataset.AddOne(Image2D(validation_adc_folder, shape=(184, 184)))
-
-    # validation_dataset.AddOne(Feature(csv_folder), is_input=False)
-    validation_dataset.AddOne(Image2D(validation_roi_folder, shape=(184, 184), is_roi=True), is_input=False)
-    validation_dataset.AddOne(Image2D(validation_prostate_folder, shape=(184, 184), is_roi=True), is_input=False)
-
-    ###########################################################
-    if is_test:
-        train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True)
-        validation_loader = DataLoader(validation_dataset, batch_size=1, shuffle=True)
-    else:
-        train_loader = DataLoader(train_dataset, batch_size=12, shuffle=True)
-        validation_loader = DataLoader(validation_dataset, batch_size=12, shuffle=True)
-
-    return train_loader, validation_loader
-
-
-def LoadTestData(is_test=False):
-    if is_test:
-        test_dataset = DataManager()
-    else:
-        test_dataset = DataManager(random_2d_augment)
-    test_dataset.AddOne(Image2D(test_t2_folder, shape=(184, 184)))
-    test_dataset.AddOne(Image2D(test_dwi_folder, shape=(184, 184)))
-    test_dataset.AddOne(Image2D(test_adc_folder, shape=(184, 184)))
-
-    # test_dataset.AddOne(Feature(csv_folder), is_input=False)
-    test_dataset.AddOne(Image2D(test_roi_folder, shape=(184, 184), is_roi=True), is_input=False)
-    test_dataset.AddOne(Image2D(test_prostate_folder, shape=(184, 184), is_roi=True), is_input=False)
-
-
-    test_loader = DataLoader(test_dataset, batch_size=1, shuffle=True)
-    return test_loader
+        shutil.rmtree(graph_path)
+        os.mkdir(graph_path)
 
 
 def Train():
-    train_loader, validation_loader = LoadTVData()
-    if torch.cuda.device_count() > 1:
-        model = torch.nn.DataParallel(MultiSegModel(in_channels=3, out_channels=1), device_ids=[1])
-    model.to(device)
+    ClearGraphPath()
+    train_loader, validation_loader = LoadTVData(is_test=False, folder=data_folder, setname=['PreTrain', 'PreValid'])
+    model = MultiSegModel(in_channels=3, out_channels=1).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-    train_loss1 = 0.0
-    train_loss2 = 0.0
-    train_loss = 0.0
-    valid_loss1 = 0.0
-    valid_loss2 = 0.0
-    valid_loss = 0.0
-    seg_criterion1 = DiceLoss()
-    seg_criterion2 = DiceLoss()
+
+    seg_criterion = nn.BCELoss()
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', patience=20, factor=0.5, verbose=True)
     early_stopping = EarlyStopping(patience=100, verbose=True)
     writer = SummaryWriter(log_dir=graph_path, comment='Net')
@@ -113,19 +61,25 @@ def Train():
         train_loss1_list, valid_loss1_list = [], []
         train_loss2_list, valid_loss2_list = [], []
         train_loss_list, valid_loss_list = [], []
+        train_loss1 = 0.0
+        train_loss2 = 0.0
+        train_loss = 0.0
+        valid_loss1 = 0.0
+        valid_loss2 = 0.0
+        valid_loss = 0.0
 
         model.train()
         for i, (inputs, outputs) in enumerate(train_loader):
             t2, dwi, adc = inputs[0], inputs[1], inputs[2],
             roi, prostate = outputs[0].to(device), outputs[1].to(device)
 
-            inputs = torch.cat([t2, dwi, adc], axis=1)
+            inputs = torch.cat([t2, dwi, adc], dim=1)
             inputs = inputs.type(torch.FloatTensor).to(device)
 
             roi_out, prostate_out = model(inputs)
 
-            loss1 = seg_criterion1(roi_out, roi)
-            loss2 = seg_criterion2(prostate_out, prostate)
+            loss1 = seg_criterion(roi_out, roi)
+            loss2 = seg_criterion(prostate_out, prostate)
             loss = loss1 + loss2
 
             optimizer.zero_grad()
@@ -154,14 +108,14 @@ def Train():
                 t2, dwi, adc = inputs[0], inputs[1], inputs[2],
                 roi, prostate = outputs[0].to(device), outputs[1].to(device)
 
-                inputs = torch.cat([t2, dwi, adc], axis=1)
+                inputs = torch.cat([t2, dwi, adc], dim=1)
                 inputs = inputs.type(torch.FloatTensor).to(device)
 
 
                 roi_out, prostate_out = model(inputs)
 
-                loss1 = seg_criterion1(roi_out, roi)
-                loss2 = seg_criterion2(prostate_out, prostate)
+                loss1 = seg_criterion(roi_out, roi)
+                loss2 = seg_criterion(prostate_out, prostate)
                 loss = loss1 + loss2
 
                 valid_loss1 += loss1.item()
@@ -172,7 +126,6 @@ def Train():
 
                 valid_loss += loss.item()
                 valid_loss_list.append(loss.item())
-
 
                 if (i + 1) % 10 == 0:
                     print('Epoch [%d / %d], Iter [%d], Cancer validation Loss: %.4f, Prostate validation Loss: %.4f, Loss: %.4f' %
@@ -193,7 +146,7 @@ def Train():
                            {'train_loss': np.mean(train_loss_list), 'val_loss': np.mean(valid_loss_list)}, epoch + 1)
         writer.close()
 
-        print('Epoch:', epoch + 1, 'Training Loss:', np.mean(train_loss_list), 'Valid Loss:', np.mean(valid_loss_list))
+        # print('Epoch:', epoch + 1, 'Training Loss:', np.mean(train_loss_list), 'Valid Loss:', np.mean(valid_loss_list))
 
         scheduler.step(np.mean(valid_loss_list))
         early_stopping(sum(valid_loss_list)/len(valid_loss_list), model, save_path=model_folder, evaluation=min)
@@ -210,10 +163,7 @@ def Test():
     test_loader = LoadTestData(is_test=True)
     train_loader, validation_loader = LoadTVData(is_test=True)
 
-    if torch.cuda.device_count() > 1:
-        model = torch.nn.DataParallel(MultiSegModel(in_channels=3, out_channels=1), device_ids=[1])
-    # model.to(device)
-    # model = MultiSegModel(in_channels=3, out_channels=1).to(device)
+    model = MultiSegModel(in_channels=3, out_channels=1).to(device)
     model.load_state_dict(torch.load(model_path))
 
     name_list = ['Train', 'Validation', 'Test']
@@ -230,7 +180,7 @@ def Test():
             t2, dwi, adc = inputs[0], inputs[1], inputs[2],
             roi, prostate = outputs[0].to(device), outputs[1].to(device)
 
-            inputs = torch.cat([t2, dwi, adc], axis=1)
+            inputs = torch.cat([t2, dwi, adc], dim=1)
             inputs = inputs.type(torch.FloatTensor).to(device)
 
             roi_out, prostate_out = model(inputs)
@@ -377,7 +327,7 @@ def FeatureMap():
 
 
 if __name__ == '__main__':
-    # Train()
-    Test()
+    Train()
+    # Test()
     # ShowPicture()
     # FeatureMap()

@@ -114,6 +114,7 @@ class ResNet(nn.Module):
                              "or a 3-element tuple, got {}".format(replace_stride_with_dilation))
         self.groups = groups
         self.base_width = width_per_group
+
         self.conv1 = nn.Conv2d(5, self.inplanes, kernel_size=7, stride=2, padding=3,
                                bias=False)
         self.bn1 = norm_layer(self.inplanes)
@@ -128,7 +129,7 @@ class ResNet(nn.Module):
                                        dilate=replace_stride_with_dilation[2])
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         self.fc1 = nn.Linear(512 * block.expansion, num_classes)
-        self.fc2 = nn.Linear(num_classes, 1)
+        self.fc2 = nn.Linear(num_classes, 2)
         # self.softmax = nn.Softmax(dim=1)
 
         for m in self.modules():
@@ -172,19 +173,19 @@ class ResNet(nn.Module):
     def forward(self, x):
         feature_map = {}
         x = self.conv1(x)
-        feature_map['conv1'] = x.sigmoid()
+        # feature_map['conv1'] = x.sigmoid()
         x = self.bn1(x)
         x = self.relu(x)
         x = self.maxpool(x)
 
         x = self.layer1(x)
-        feature_map['layer1'] = x.sigmoid()
+        # feature_map['layer1'] = x.sigmoid()
         x = self.layer2(x)
-        feature_map['layer2'] = x.sigmoid()
+        # feature_map['layer2'] = x.sigmoid()
         x = self.layer3(x)
-        feature_map['layer3'] = x.sigmoid()
+        # feature_map['layer3'] = x.sigmoid()
         x = self.layer4(x)
-        feature_map['layer4'] = x.sigmoid()
+        # feature_map['layer4'] = x.sigmoid()
 
         x = self.avgpool(x)
         x = torch.flatten(x, 1)
@@ -192,7 +193,7 @@ class ResNet(nn.Module):
         x = self.fc2(x)
         # x = self.softmax(x)
 
-        return x, feature_map
+        return x
 
 
 if __name__ == '__main__':

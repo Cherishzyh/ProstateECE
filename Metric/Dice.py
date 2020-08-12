@@ -13,7 +13,6 @@
 from enum import Enum
 import numpy as np
 import SimpleITK as sitk
-import pandas as pd
 
 import torch
 import torch.nn as nn

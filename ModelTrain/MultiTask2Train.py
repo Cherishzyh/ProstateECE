@@ -90,9 +90,7 @@ def LoadTestData():
 
 def Train():
     train_loader, validation_loader = LoadTVData()
-    if torch.cuda.device_count() > 1:
-        model = torch.nn.DataParallel(MultiTaskModel(in_channels=3, out_channels=1), device_ids=[0])
-    model.to(device)
+    model = MultiTaskModel(in_channels=3, out_channels=1).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
     train_loss1 = 0.0
     train_loss2 = 0.0

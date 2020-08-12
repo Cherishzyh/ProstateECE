@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from Model.Block import DoubleConv, AttentionBlock
+from MyModel.Block import DoubleConv, AttentionBlock
 
 
 class AttenUNet(nn.Module):
@@ -29,8 +29,6 @@ class AttenUNet(nn.Module):
         self.Conv7 = DoubleConv(192, 64)
 
         self.Conv_1x1 = nn.Conv2d(64, out_channels, kernel_size=1, stride=1, padding=0)
-        self.fc1 = nn.Linear(1*184*184, 1*1000)
-        self.fc2 = nn.Linear(1*1000, 1*2)
 
         # self.softmax = nn.LogSoftmax(dim=1)
         # self.sigmoid = nn.Sigmoid()
@@ -62,9 +60,6 @@ class AttenUNet(nn.Module):
         conv_7 = self.Conv7(merge_7)
 
         out = self.Conv_1x1(conv_7)
-        out = out.view(-1, 1*184*184)
-        out = self.fc2(self.fc1(out))
-        # out = self.softmax(out)
         return out
 
 

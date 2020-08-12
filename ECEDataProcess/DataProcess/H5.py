@@ -5,7 +5,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from scipy import ndimage
 
-from MeDIT.SaveAndLoad import LoadNiiData
+from MeDIT.SaveAndLoad import LoadNiiData, LoadImage
 from MeDIT.Normalize import Normalize01
 from MeDIT.Visualization import Imshow3DArray
 

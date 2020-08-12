@@ -43,8 +43,6 @@ class UNet(nn.Module):
         self.up7 = nn.ConvTranspose2d(128, 64, 2, stride=2)
         self.conv8 = DoubleConv(128, 64)
         self.conv9 = nn.Conv2d(64, out_channels, 1)
-        self.fc1 = nn.Linear(1*184*184, 1*1000)
-        self.fc2 = nn.Linear(1*1000, 1*2)
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):
@@ -65,10 +63,7 @@ class UNet(nn.Module):
         merge8 = torch.cat((up_7, c1), dim=1)
         c8 = self.conv8(merge8)
         c9 = self.conv9(c8)
-        c9 = c9.view(-1, 1*184*184)
-        out = self.fc2(self.fc1(c9))
-        # out = self.sigmoid(out)
-        return out
+        return c9
 
 
 def test():

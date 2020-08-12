@@ -1,11 +1,9 @@
 import os
+import shutil
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 import json
-import shutil
-
-from sklearn import metrics
 
 import torch
 import torch.nn as nn
@@ -24,11 +22,20 @@ from MyModel.ResNet50 import ResNet, Bottleneck
 from NPYFilePath import *
 from Metric.classification_statistics import get_auc, draw_roc
 
-device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
-model_folder = r'/home/zhangyihong/Documents/ProstateECE/Model/ResNet505Inputs'
-model_path = r'/home/zhangyihong/Documents/ProstateECE/Model/ResNet505Inputs/checkpoint.pt'
-graph_path = r'/home/zhangyihong/Documents/ProstateECE/Model/ResNet505Inputs/logs'
+device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
+
+model_folder = r'/home/zhangyihong/Documents/ProstateECE/Model/ResNet505InputOneHot/'
+model_path = r'/home/zhangyihong/Documents/ProstateECE/Model/ResNet505InputOneHot/checkpoint.pt'
+graph_path = r'/home/zhangyihong/Documents/ProstateECE/Model/ResNet505InputOneHot/logs'
+
+
+def ClearGraphPath():
+    if not os.path.exists(graph_path):
+        os.mkdir(graph_path)
+    else:
+        shutil.rmtree(graph_path)
+        os.mkdir(graph_path)
 
 
 def LoadTVData(is_test=False):
@@ -68,8 +75,11 @@ def LoadTVData(is_test=False):
     return train_loader, validation_loader
 
 
-def LoadTestData():
-    test_dataset = DataManager()
+def LoadTestData(is_test=False):
+    if is_test:
+        test_dataset = DataManager()
+    else:
+        test_dataset = DataManager(random_2d_augment)
     test_dataset.AddOne(Image2D(test_t2_folder, shape=(184, 184)))
     test_dataset.AddOne(Image2D(test_dwi_folder, shape=(184, 184)))
     test_dataset.AddOne(Image2D(test_adc_folder, shape=(184, 184)))
@@ -82,20 +92,14 @@ def LoadTestData():
     return test_loader
 
 
-def ClearGraphPath():
-    if not os.path.exists(graph_path):
-        os.mkdir(graph_path)
-    else:
-        shutil.rmtree(graph_path)
-        os.mkdir(graph_path)
-
 def Train():
+    ClearGraphPath()
     train_loader, validation_loader = LoadTVData()
     model = ResNet(Bottleneck, [3, 4, 6, 3]).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
     train_loss = 0.0
     valid_loss = 0.0
-    cla_criterion = nn.BCEWithLogitsLoss()
+    cla_criterion = nn.CrossEntropyLoss()
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', patience=20, factor=0.5, verbose=True)
     early_stopping = EarlyStopping(patience=100, verbose=True)
     writer = SummaryWriter(log_dir=graph_path, comment='Net')
@@ -107,18 +111,18 @@ def Train():
         model.train()
         for i, (inputs, outputs) in enumerate(train_loader):
             t2, dwi, adc, roi, prostate = inputs[0], inputs[1], inputs[2], inputs[3], inputs[4]
-            ece = np.squeeze(outputs, axis=1)
+            ece = np.argmax(outputs, axis=1)
 
-            inputs = torch.cat([t2, dwi, adc, roi, prostate], axis=1)
+            inputs = torch.cat([t2, dwi, adc, roi, prostate], dim=1)
             inputs = inputs.type(torch.FloatTensor).to(device)
 
-            ece = ece.type(torch.FloatTensor).to(device)
+            ece = ece.type(torch.LongTensor).to(device)
 
             optimizer.zero_grad()
 
             class_out, _ = model(inputs)
-            class_out = torch.squeeze(class_out, dim=1)
-            class_out_sigmoid = class_out.sigmoid()
+            # class_out = torch.squeeze(class_out, dim=1)
+            class_out_softmax = nn.functional.softmax(class_out, dim=1)
 
             loss = cla_criterion(class_out, ece)
 
@@ -130,11 +134,10 @@ def Train():
 
             # compute auc
             class_list.extend(list(ece.cpu().numpy()))
-            class_pred_list.extend(list(class_out_sigmoid.cpu().detach().numpy()))
+            class_pred_list.extend(list(class_out_softmax.cpu().detach().numpy()[..., 1]))
 
             if (i + 1) % 10 == 0:
                 print('Epoch [%d / %d], Iter [%d], Train Loss: %.4f' %(epoch + 1, 1000, i + 1, train_loss / 10))
-                print(list(class_out_sigmoid.cpu().detach().numpy()))
                 train_loss = 0.0
 
         _, _, train_auc = get_auc(class_pred_list, class_list)
@@ -144,16 +147,16 @@ def Train():
         with torch.no_grad():
             for i, (inputs, outputs) in enumerate(validation_loader):
                 t2, dwi, adc, roi, prostate = inputs[0], inputs[1], inputs[2], inputs[3], inputs[4]
-                ece = np.squeeze(outputs, axis=1)
+                ece = np.argmax(outputs, axis=1)
 
                 inputs = torch.cat([t2, dwi, adc, roi, prostate], axis=1)
                 inputs = inputs.type(torch.FloatTensor).to(device)
 
-                ece = ece.type(torch.FloatTensor).to(device)
+                ece = ece.type(torch.LongTensor).to(device)
 
                 class_out, _ = model(inputs)
-                class_out = torch.squeeze(class_out, dim=1)
-                class_out_sigmoid = class_out.sigmoid()
+                # class_out = torch.squeeze(class_out, dim=1)
+                class_out_softmax = nn.functional.softmax(class_out, dim=1)
 
                 loss = cla_criterion(class_out, ece)
 
@@ -162,11 +165,11 @@ def Train():
 
                 # compute auc
                 class_list.extend(list(ece.cpu().numpy()))
-                class_pred_list.extend(list(class_out_sigmoid.cpu().detach().numpy()))
+                class_pred_list.extend(list(class_out_softmax.cpu().detach().numpy()[..., 1]))
 
                 if (i + 1) % 10 == 0:
                     print('Epoch [%d / %d], Iter [%d],  Valid Loss: %.4f' %(epoch + 1, 1000, i + 1, valid_loss / 10))
-                    print(list(class_out_sigmoid.cpu().detach().numpy()))
+
                     valid_loss = 0.0
             _, _, valid_auc = get_auc(class_pred_list, class_list)
 
@@ -184,7 +187,8 @@ def Train():
               np.mean(valid_loss_list), 'Train auc:', train_auc, 'Valid auc:', valid_auc)
 
         scheduler.step(np.mean(valid_loss_list))
-        early_stopping(sum(valid_loss_list)/len(valid_loss_list), model, save_path=model_folder, evaluation=min)
+        # early_stopping(sum(valid_loss_list)/len(valid_loss_list), model, save_path=model_folder, evaluation=min)
+        early_stopping(valid_auc, model, save_path=model_folder, evaluation=max)
 
         if early_stopping.early_stop:
             print("Early stopping")
@@ -192,7 +196,7 @@ def Train():
 
 
 def Test():
-    test_loader = LoadTestData()
+    test_loader = LoadTestData(is_test=True)
     train_loader, validation_loader = LoadTVData(is_test=True)
 
     model = ResNet(Bottleneck, [3, 4, 6, 3]).to(device)
@@ -203,25 +207,25 @@ def Test():
     name_list = ['Train', 'Validation', 'Test']
     loader_list = [train_loader, validation_loader, test_loader]
 
-    # with torch.no_grad():
     model.eval()
+    # with torch.no_grad():
     for name_num, loader in enumerate(loader_list):
         class_list, class_pred_list = [], []
         for i, (inputs, outputs) in enumerate(loader):
             t2, dwi, adc, roi, prostate = inputs[0], inputs[1], inputs[2], inputs[3], inputs[4]
-            ece = np.squeeze(outputs, axis=1)
+            ece = np.argmax(outputs, axis=1)
 
             inputs = torch.cat([t2, dwi, adc, roi, prostate], axis=1)
             inputs = inputs.type(torch.FloatTensor).to(device)
 
-            ece = ece.type(torch.FloatTensor).to(device)
+            ece = ece.type(torch.LongTensor).to(device)
 
-            class_out, _ = model(inputs)
+            class_out = model(inputs)
             class_out = torch.squeeze(class_out, dim=1)
-            class_out_sigmoid = class_out.sigmoid()
+            class_out_softmax = nn.functional.softmax(class_out, dim=1)
 
             class_list.extend(list(ece.cpu().numpy()))
-            class_pred_list.extend(list(class_out_sigmoid.cpu().detach().numpy()))
+            class_pred_list.extend(list(class_out_softmax.cpu().detach().numpy()[..., 1]))
 
         fpr, tpr, auc = get_auc(class_pred_list, class_list)
         fpr_list.append(fpr)
@@ -231,57 +235,47 @@ def Test():
 
 
 def ShowPicture():
+    from Metric.Dice import Dice
+
+    dice = Dice()
     train_loader, validation_loader = LoadTVData(is_test=True)
-    test_loader = LoadTestData()
-    loader_list = [train_loader, validation_loader, test_loader]
-    loader_name = ['train', 'validation', 'test']
+    test_loader = LoadTestData(is_test=True)
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
     model = ResNet(Bottleneck, [3, 4, 6, 3]).to(device)
     model.load_state_dict(torch.load(model_path))
     ece_pre_list = []
     ece_list = []
-    TP = 0.0
-    FP = 0.0
-    TN = 0.0
-    FN = 0.0
-    for name, loader in enumerate(loader_list):
-        for i, (inputs, outputs) in enumerate(loader):
-            t2, dwi, adc, roi, prostate = inputs[0], inputs[1], inputs[2], inputs[3], inputs[4]
-            ece = np.squeeze(outputs, axis=1)
+    for i, (inputs, outputs) in enumerate(test_loader):
+        t2, dwi, adc, roi, prostate = inputs[0], inputs[1], inputs[2], inputs[3], inputs[4]
+        ece = np.squeeze(outputs, axis=1)
 
-            inputs = torch.cat([t2, dwi, adc, roi, prostate], axis=1)
-            inputs = inputs.type(torch.FloatTensor).to(device)
+        inputs = torch.cat([t2, dwi, adc, roi, prostate], axis=1)
+        inputs = inputs.type(torch.FloatTensor).to(device)
 
-            ece = ece.type(torch.FloatTensor).to(device)
+        ece = ece.type(torch.FloatTensor).to(device)
 
-            class_out, _ = model(inputs)
-            class_out = torch.squeeze(class_out, dim=1)
-            class_out_sigmoid = class_out.sigmoid()
+        class_out, _ = model(inputs)
+        class_out_softmax = nn.functional.softmax(class_out, dim=1)
+        ece_pre_list.append(class_out_softmax.cpu().detach().numpy()[0][0])
+        ece_list.append(ece.cpu().numpy()[0][0])
 
-            ece_pre_list.append(class_out_sigmoid.cpu().detach().numpy()[0])
-            ece_list.append(ece.cpu().numpy()[0])
-
-        # for index in range(len(ece_list)):
-        #     if ece_list[index] == 0.0:
-        #         if ece_pre_list[index] > thresholds:
-        #             FP += 1
-        #         if ece_pre_list[index] < thresholds:
-        #             FN += 1
-        #     elif ece_list[index] == 1.0:
-        #         if ece_pre_list[index] > thresholds:
-        #             TP += 1
-        #         if ece_pre_list[index] < thresholds:
-        #             TN += 1
-        # print(TP, TN, FP, FN)
-        plt.suptitle(loader_name[name])
-        plt.subplot(121)
-        plt.title('ECE label')
-        plt.hist(ece_list)
-        plt.subplot(122)
-        plt.title('ECE prediction')
-        plt.hist(ece_pre_list)
-        plt.show()
+        # prostate_out = np.squeeze(BinaryPred(prostate_out).cpu().detach().numpy())
+        # prostate = np.squeeze(prostate.cpu().numpy())
+        # roi_out = np.squeeze(BinaryPred(roi_out).cpu().detach().numpy())
+        # roi = np.squeeze(roi.cpu().numpy())
+        # t2_data = np.squeeze(t2.cpu().numpy())
+        # plt.imshow(t2_data, cmap='gray')
+        # plt.contour(prostate, colors='r')
+        # plt.contour(prostate_out, colors='y')
+        # plt.contour(roi, colors='g')
+        # plt.contour(roi_out, colors='b')
+        # plt.title('ECE: ' + str(ece.cpu().numpy()[0][0])
+        #           + ', predict ece: ' + str(class_out.cpu().detach().numpy()[0][0]))
+        # plt.axis('off')
+        # plt.show()
+    plt.hist(ece_list)
+    plt.show()
 
 
 def FeatureMap():
@@ -359,7 +353,7 @@ def FeatureMap():
 
 
 if __name__ == '__main__':
-    # Train()
+    Train()
     # Test()
-    ShowPicture()
+    # ShowPicture()
     # FeatureMap()

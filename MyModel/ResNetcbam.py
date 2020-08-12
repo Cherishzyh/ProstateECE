@@ -3,8 +3,7 @@ import torch.nn as nn
 import math
 import torch.utils.model_zoo as model_zoo
 
-import numpy as np
-import matplotlib.pyplot as plt
+from MyModel.Block import *
 
 
 __all__ = ['ResNet', 'resnet18_cbam', 'resnet34_cbam', 'resnet50_cbam', 'resnet101_cbam',
@@ -18,59 +17,6 @@ model_urls = {
     'resnet101': 'https://download.pytorch.org/models/resnet101-5d3b4d8f.pth',
     'resnet152': 'https://download.pytorch.org/models/resnet152-b121ed2d.pth',
 }
-
-
-def conv3x3(in_planes, out_planes, stride=1):
-    "3x3 convolution with padding"
-    return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride,
-                     padding=1, bias=False)
-
-
-class ChannelAttention(nn.Module):
-    def __init__(self, in_planes, ratio=16):
-        super(ChannelAttention, self).__init__()
-        self.avg_pool = nn.AdaptiveAvgPool2d(1)
-        self.max_pool = nn.AdaptiveMaxPool2d(1)
-
-        self.fc1 = nn.Conv2d(in_planes, in_planes // ratio, 1, bias=False)
-        self.relu1 = nn.ReLU()
-        self.fc2 = nn.Conv2d(in_planes // ratio, in_planes, 1, bias=False)
-
-        self.sigmoid = nn.Sigmoid()
-
-    def forward(self, x):
-        avg_out = self.fc2(self.relu1(self.fc1(self.avg_pool(x))))
-        max_out = self.fc2(self.relu1(self.fc1(self.max_pool(x))))
-        out = avg_out + max_out
-
-        # plt.imshow(out.sigmoid().cpu().detach().numpy()[0, 0, ...], cmap='gray')
-        # plt.title('CA')
-        # plt.show()
-
-        return self.sigmoid(out)
-
-
-class SpatialAttention(nn.Module):
-    def __init__(self, kernel_size=7):
-        super(SpatialAttention, self).__init__()
-
-        assert kernel_size in (3, 7), 'kernel size must be 3 or 7'
-        padding = 3 if kernel_size == 7 else 1
-
-        self.conv1 = nn.Conv2d(2, 1, kernel_size, padding=padding, bias=False)
-        self.sigmoid = nn.Sigmoid()
-
-    def forward(self, x):
-        avg_out = torch.mean(x, dim=1, keepdim=True)
-        max_out, _ = torch.max(x, dim=1, keepdim=True)
-        x = torch.cat([avg_out, max_out], dim=1)
-        x = self.conv1(x)
-
-        # plt.imshow(x.sigmoid().cpu().detach().numpy()[0, 0, ...], cmap='gray')
-        # plt.title('SP')
-        # plt.show()
-
-        return self.sigmoid(x)
 
 
 class BasicBlock(nn.Module):
@@ -153,11 +99,6 @@ class Bottleneck(nn.Module):
             residual = self.downsample(x)
 
         out += residual
-
-        # plt.imshow(out.sigmoid().cpu().detach().numpy()[0, 0, ...], cmap='gray')
-        # plt.title('Resblock')
-        # plt.show()
-
         out = self.relu(out)
 
         return out
@@ -165,11 +106,10 @@ class Bottleneck(nn.Module):
 
 class ResNet(nn.Module):
 
-    def __init__(self, block, layers, num_classes=1000):
-        self.inplanes = 64
+    def __init__(self, block, layers, num_classes=1):
         super(ResNet, self).__init__()
-        self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3,
-                               bias=False)
+        self.inplanes = 64
+        self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3, bias=False)
         self.bn1 = nn.BatchNorm2d(64)
         self.relu = nn.ReLU(inplace=True)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
@@ -179,7 +119,6 @@ class ResNet(nn.Module):
         self.layer4 = self._make_layer(block, 512, layers[3], stride=2)
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         self.fc1 = nn.Linear(512 * block.expansion, num_classes)
-        self.fc2 = nn.Linear(num_classes, 1)
         self.sigmoid = nn.Sigmoid()
 
         for m in self.modules():
@@ -208,15 +147,7 @@ class ResNet(nn.Module):
         return nn.Sequential(*layers)
 
     def forward(self, x):
-        # plt.imshow(x.sigmoid().cpu().detach().numpy()[0, 0, ...], cmap='gray')
-        # plt.title('input')
-        # plt.show()
-
         x = self.conv1(x)
-
-        # plt.imshow(x.sigmoid().cpu().detach().numpy()[0, 0, ...], cmap='gray')
-        # plt.title('conv1')
-        # plt.show()
 
         x = self.bn1(x)
         x = self.relu(x)
@@ -231,7 +162,6 @@ class ResNet(nn.Module):
         x = self.avgpool(x)
         x = torch.flatten(x, 1)
         x = self.fc1(x)
-        x = self.fc2(x)
         # x = self.sigmoid(x)
 
         return x
