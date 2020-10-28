@@ -22,7 +22,7 @@ class _BaseWrapper(object):
         self.handlers = []  # a set of hook function handlers
 
     def _encode_one_hot(self, ids):
-        one_hot = torch.zeros_like(self.logits1).to(self.device)
+        one_hot = torch.zeros_like(self.logits).to(self.device)
         one_hot.scatter_(1, ids, 1.0)
         return one_hot
 
@@ -33,9 +33,9 @@ class _BaseWrapper(object):
 
     # have no roi and have only 1 output
     def forward(self, inputs):
-        self.logits1 = self.model(inputs)
-        self.probs = F.softmax(self.logits1, dim=1)
-        return self.probs.sort(dim=1, descending=True)  # ordered results
+        self.logits = self.model(*inputs)
+        self.probs = F.softmax(self.logits, dim=1)
+        return self.logits
 
     def backward(self, ids):
         """
@@ -43,7 +43,7 @@ class _BaseWrapper(object):
         """
         one_hot = self._encode_one_hot(ids)
         self.model.zero_grad()
-        self.logits1.backward(gradient=one_hot, retain_graph=True)
+        self.logits.backward(gradient=one_hot, retain_graph=True)
 
     def generate(self):
         raise NotImplementedError
@@ -141,15 +141,12 @@ class GradCAM(_BaseWrapper):
                 self.handlers.append(module.register_backward_hook(save_grads(name)))
 
     def _find(self, pool, target_layer):
-        # for key in pool.keys():
-        #     if target_layer in key:
-        #         return pool[key], key
         if target_layer in pool.keys():
             return pool[target_layer]
         else:
             raise ValueError("Invalid layer name: {}".format(target_layer))
 
-    def generate(self, target_layer):
+    def generate(self, target_layer, target_shape):
         fmaps = self._find(self.fmap_pool, target_layer)
         grads = self._find(self.grad_pool, target_layer)
         weights = F.adaptive_avg_pool2d(grads, 1)
@@ -157,14 +154,17 @@ class GradCAM(_BaseWrapper):
         gcam = torch.mul(fmaps, weights).sum(dim=1, keepdim=True)
         gcam = F.relu(gcam)
         gcam = F.interpolate(
-            gcam, (192, 192), mode="bilinear", align_corners=False
+            gcam, target_shape, mode="bilinear", align_corners=False
         )
 
-        B, C, H, W = gcam.shape
-        gcam = gcam.view(B, -1)
-        gcam -= gcam.min(dim=1, keepdim=True)[0]
-        gcam /= gcam.max(dim=1, keepdim=True)[0]
-        gcam = gcam.view(B, C, H, W)
+        if gcam.max() == 0:
+            pass
+        else:
+            B, C, H, W = gcam.shape
+            gcam = gcam.view(B, -1)
+            gcam -= gcam.min(dim=1, keepdim=True)[0]
+            gcam /= gcam.max(dim=1, keepdim=True)[0]
+            gcam = gcam.view(B, C, H, W)
 
         return gcam
 

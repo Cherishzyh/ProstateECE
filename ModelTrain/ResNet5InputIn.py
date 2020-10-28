@@ -35,6 +35,7 @@ def ClearGraphPath(graph_path):
         shutil.rmtree(graph_path)
         os.mkdir(graph_path)
 
+
 def Train():
     train_loader, validation_loader = LoadTVData()
     model = ResNet(Bottleneck, [3, 4, 6, 3]).to(device)

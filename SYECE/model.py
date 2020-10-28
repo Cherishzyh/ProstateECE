@@ -2,11 +2,11 @@ from __future__ import division
 import math
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.nn import init
+
 import torch
 
 from MyModel.Block import conv1x1, conv3x3
-
+from T4T.Block.ConvBlock import ConvBn2D
 
 '''
 v1: all layers add distance map
@@ -16,7 +16,7 @@ v2: only layer1 and layer2 add distance map
 
 
 class ChannelAttention(nn.Module):
-    def __init__(self, in_planes, ratio=16):
+    def __init__(self, in_planes, ratio=8):
         super(ChannelAttention, self).__init__()
         self.avg_pool = nn.AdaptiveAvgPool2d(1)
         self.max_pool = nn.AdaptiveMaxPool2d(1)
@@ -31,10 +31,6 @@ class ChannelAttention(nn.Module):
         avg_out = self.fc2(self.relu1(self.fc1(self.avg_pool(x))))
         max_out = self.fc2(self.relu1(self.fc1(self.max_pool(x))))
         out = avg_out + max_out
-
-        # plt.imshow(out.sigmoid().cpu().detach().numpy()[0, 0, ...], cmap='gray')
-        # plt.title('CA')
-        # plt.show()
 
         return self.sigmoid(out)
 
@@ -59,32 +55,45 @@ class SpatialAttention(nn.Module):
 
 
 class Bottleneck(nn.Module):
-    expansion = 4
 
-    def __init__(self, inplanes, planes, stride=1, downsample=None, downstride=2, groups=1,
-                 base_width=64, dilation=1):
+    def __init__(self, inplanes, planes, baseWidth=4, cardinality=32,
+                 stride=1, downsample=None, downstride=2):
+        """ Constructor
+        Args:
+            inplanes: input channel dimensionality
+            planes: output channel dimensionality
+            baseWidth: base width.
+            cardinality: num of convolution groups.
+            stride: conv stride. Replaces pooling layer.
+        """
         super(Bottleneck, self).__init__()
 
-        width = int(planes * (base_width / 64.)) * groups
-        self.conv1 = conv1x1(inplanes, width)
-        self.bn1 = nn.BatchNorm2d(width)
-        self.conv2 = conv3x3(width, width, stride, groups, dilation)
-        self.bn2 = nn.BatchNorm2d(width)
-        self.conv3 = conv1x1(width, planes * self.expansion)
-        self.bn3 = nn.BatchNorm2d(planes * self.expansion)
+        conv_planes = planes // 2
+
+        D = int(math.floor(conv_planes * (baseWidth / 16)))
+        C = cardinality
+
+        self.conv1 = nn.Conv2d(inplanes, D * C, kernel_size=1, stride=1, padding=0, bias=False)
+        self.bn1 = nn.BatchNorm2d(D * C)
+        self.conv2 = nn.Conv2d(D * C, D * C, kernel_size=3, stride=stride, padding=1, groups=C, bias=False)
+        self.bn2 = nn.BatchNorm2d(D * C)
+        self.conv3 = nn.Conv2d(D * C, conv_planes, kernel_size=1, stride=1, padding=0, bias=False)
+        self.bn3 = nn.BatchNorm2d(conv_planes)
         self.relu = nn.ReLU(inplace=True)
-        self.ca = ChannelAttention(planes * 4)
-        self.sa = SpatialAttention()
+
+        self.ca = ChannelAttention(conv_planes)
+        self.sa_fm = SpatialAttention()
 
         if downsample is True:
             self.downsample = nn.Sequential(
-                conv1x1(inplanes, planes * self.expansion * 2, downstride),
-                nn.BatchNorm2d(planes * self.expansion * 2),
+                conv1x1(inplanes, conv_planes * 2, downstride),
+                nn.BatchNorm2d(conv_planes * 2),
             )
         else:
             self.downsample = None
 
     def forward(self, feature_map, dis_map):
+
         residual = feature_map
 
         out = self.conv1(feature_map)
@@ -99,10 +108,10 @@ class Bottleneck(nn.Module):
         out = self.bn3(out)
 
         shape = out.shape[2:]
-        dis_map_resize = F.interpolate(dis_map, size=shape, mode='nearest')
+        dis_map_resize = F.interpolate(dis_map, size=shape, mode='bilinear', align_corners=True)
 
         out = self.ca(out) * out
-        out_fm = self.sa(out) * out
+        out_fm = self.sa_fm(out) * out
         out_dm = dis_map_resize * out
 
         out = torch.cat([out_fm, out_dm], dim=1)
@@ -117,12 +126,12 @@ class Bottleneck(nn.Module):
 
 
 class Layer1(nn.Module):
-    def __init__(self, inplanes):
+    def __init__(self, inplanes, outplanes, cardinality=32):
         super(Layer1, self).__init__()
-        self.inplanes = inplanes
-        self.layer1_0 = Bottleneck(inplanes=self.inplanes, planes=self.inplanes, downsample=True, downstride=1)
-        self.layer1_1 = Bottleneck(inplanes=self.inplanes * 8, planes=self.inplanes)
-        self.layer1_2 = Bottleneck(inplanes=self.inplanes * 8, planes=self.inplanes)
+        self.layer1_0 = Bottleneck(inplanes=inplanes, planes=outplanes, cardinality=cardinality,
+                                   downsample=True, downstride=1)
+        self.layer1_1 = Bottleneck(inplanes=outplanes, planes=outplanes, cardinality=cardinality)
+        self.layer1_2 = Bottleneck(inplanes=outplanes, planes=outplanes, cardinality=cardinality)
 
     def forward(self, x, dis_map):
         x = self.layer1_0(x, dis_map)
@@ -132,14 +141,15 @@ class Layer1(nn.Module):
 
 
 class Layer2(nn.Module):
-    def __init__(self, inplanes):
+    def __init__(self, inplanes, outplanes, cardinality=32):
         self.inplanes = inplanes
 
         super(Layer2, self).__init__()
-        self.layer2_0 = Bottleneck(inplanes=self.inplanes*8, planes=self.inplanes*2, stride=2, downsample=True)
-        self.layer2_1 = Bottleneck(inplanes=self.inplanes*16, planes=self.inplanes*2)
-        self.layer2_2 = Bottleneck(inplanes=self.inplanes*16, planes=self.inplanes*2)
-        self.layer2_3 = Bottleneck(inplanes=self.inplanes*16, planes=self.inplanes*2)
+        self.layer2_0 = Bottleneck(inplanes=inplanes, planes=outplanes, cardinality=cardinality,
+                                   stride=2, downsample=True)
+        self.layer2_1 = Bottleneck(inplanes=outplanes, planes=outplanes, cardinality=cardinality)
+        self.layer2_2 = Bottleneck(inplanes=outplanes, planes=outplanes, cardinality=cardinality)
+        self.layer2_3 = Bottleneck(inplanes=outplanes, planes=outplanes, cardinality=cardinality)
 
     def forward(self, x, dis_map):
         x = self.layer2_0(x, dis_map)
@@ -151,35 +161,33 @@ class Layer2(nn.Module):
 
 
 class Layer3(nn.Module):
-    def __init__(self, inplanes):
+    def __init__(self, inplanes, outplanes, cardinality=32):
         super(Layer3, self).__init__()
-        self.inplanes = inplanes
-
-        self.layer3_0 = Bottleneck(inplanes=self.inplanes*2, planes=self.inplanes//2, stride=2, downsample=True)
-        self.layer3_1 = Bottleneck(inplanes=self.inplanes*4, planes=self.inplanes//2)
-        self.layer3_2 = Bottleneck(inplanes=self.inplanes*4, planes=self.inplanes//2)
-        self.layer3_3 = Bottleneck(inplanes=self.inplanes*4, planes=self.inplanes//2)
-        self.layer3_4 = Bottleneck(inplanes=self.inplanes*4, planes=self.inplanes//2)
-        self.layer3_5 = Bottleneck(inplanes=self.inplanes*4, planes=self.inplanes//2)
+        self.layer3_0 = Bottleneck(inplanes=inplanes, planes=outplanes, cardinality=cardinality,
+                                   stride=2, downsample=True)
+        self.layer3_1 = Bottleneck(inplanes=outplanes, planes=outplanes, cardinality=cardinality)
+        self.layer3_2 = Bottleneck(inplanes=outplanes, planes=outplanes, cardinality=cardinality)
+        self.layer3_3 = Bottleneck(inplanes=outplanes, planes=outplanes, cardinality=cardinality)
+        # self.layer3_4 = Bottleneck(inplanes=self.inplanes*4, planes=self.inplanes//2, cardinality=cardinality)
+        # self.layer3_5 = Bottleneck(inplanes=self.inplanes*4, planes=self.inplanes//2, cardinality=cardinality)
 
     def forward(self, x, dis_map):
         x = self.layer3_0(x, dis_map)
         x = self.layer3_1(x, dis_map)
         x = self.layer3_2(x, dis_map)
         x = self.layer3_3(x, dis_map)
-        x = self.layer3_4(x, dis_map)
-        x = self.layer3_5(x, dis_map)
+        # x = self.layer3_4(x, dis_map)
+        # x = self.layer3_5(x, dis_map)
         return x
 
 
 class Layer4(nn.Module):
-    def __init__(self, inplanes):
+    def __init__(self, inplanes, outplanes, cardinality=32):
         super(Layer4, self).__init__()
-        self.inplanes = inplanes
-
-        self.layer4_0 = Bottleneck(inplanes=self.inplanes * 4, planes=self.inplanes, stride=2, downsample=True)
-        self.layer4_1 = Bottleneck(inplanes=self.inplanes * 8, planes=self.inplanes)
-        self.layer4_2 = Bottleneck(inplanes=self.inplanes * 8, planes=self.inplanes)
+        self.layer4_0 = Bottleneck(inplanes=inplanes, planes=outplanes, cardinality=cardinality,
+                                   stride=2, downsample=True)
+        self.layer4_1 = Bottleneck(inplanes=outplanes, planes=outplanes, cardinality=cardinality)
+        self.layer4_2 = Bottleneck(inplanes=outplanes, planes=outplanes, cardinality=cardinality)
 
     def forward(self, x, dis_map):
         x = self.layer4_0(x, dis_map)
@@ -190,7 +198,7 @@ class Layer4(nn.Module):
 
 
 class ResNeXt(nn.Module):
-    def __init__(self, in_channels, num_classes, baseWidth=4, cardinality=32):
+    def __init__(self, in_channels, num_classes, inplanes=32):
         """ Constructor
         Args:
             baseWidth: baseWidth for ResNeXt.
@@ -200,24 +208,19 @@ class ResNeXt(nn.Module):
         """
         super(ResNeXt, self).__init__()
 
-        self.cardinality = cardinality
-        self.baseWidth = baseWidth
-        self.num_classes = num_classes
-        self.inplanes = 32
-
-        self.conv1 = nn.Conv2d(in_channels, self.inplanes, 3, 1, 1, bias=False)
-        self.bn1 = nn.BatchNorm2d(self.inplanes)
-        self.relu = nn.ReLU(inplace=True)
+        self.conv1 = ConvBn2D(in_channels, inplanes)
         self.maxpool1 = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
 
-        self.layer1 = Layer1(self.inplanes)
-        self.layer2 = Layer2(self.inplanes)
-        self.layer3 = Layer3(256)
-        self.layer4 = Layer4(256)
+        self.layer1 = Layer1(inplanes, inplanes * 2, cardinality=8)
+        self.layer2 = Layer2(inplanes * 2, inplanes * 4, cardinality=16)
+        self.layer3 = Layer3(inplanes * 4, inplanes * 6, cardinality=24)
+        self.layer4 = Layer4(inplanes * 6, inplanes * 8, cardinality=32)
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
-        self.fc1 = nn.Linear(512 * 4, 1000)
-        self.dropout = nn.Dropout2d()
-        self.fc2 = nn.Linear(1000, num_classes)
+        self.fc1 = nn.Sequential(nn.Linear(inplanes * 8, inplanes),
+                                 nn.Dropout(0.5),
+                                 nn.ReLU(inplace=True))
+        self.fc2 = nn.Linear(inplanes, num_classes)
+
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -227,11 +230,12 @@ class ResNeXt(nn.Module):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
 
-    def forward(self, inputs, dis_map):
+    def forward(self, t2, adc, dwi, dis_map):
+        inputs = torch.cat([t2, adc, dwi], dim=1)
+
         x = self.conv1(inputs)  # shape = (184, 184)
-        x = self.bn1(x)
-        x = self.relu(x)
         x = self.maxpool1(x)  # shape = (92, 92)
+
         x = self.layer1(x, dis_map)  # shape = (92, 92)
         x = self.layer2(x, dis_map)  # shape = (46, 46)
         x = self.layer3(x, dis_map)  # shape = (23, 23)
@@ -239,15 +243,15 @@ class ResNeXt(nn.Module):
         x = self.avgpool(x)
         x = torch.flatten(x, 1)
         x = self.fc1(x)
-        x = self.dropout(x)
         x = self.fc2(x)
-        return x
+        return torch.softmax(x, dim=1)
 
 
 if __name__ == '__main__':
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-    model = ResNeXt(3, 2).to(device)
+    model = ResNeXt(3, num_classes=2).to(device)
     print(model)
     inputs = torch.randn(1, 3, 184, 184).to(device)
     dis_map = torch.randn(1, 1, 184, 184).to(device)
     prediction = model(inputs, dis_map)
+    print(prediction.shape)

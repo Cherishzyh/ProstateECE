@@ -5,6 +5,10 @@ from MyModel.Block import DoubleConv
 from MyModel.ResNet50 import ResNet, Bottleneck, BasicBlock
 
 
+'''
+before classification, segment prostate and PCas.
+both prostate and PCas input to next network with t2, dwi and adc to classification.
+'''
 class MultiTaskModel(nn.Module):
     def __init__(self, in_channels, out_channels):
         super(MultiTaskModel, self).__init__()

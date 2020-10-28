@@ -25,6 +25,9 @@ def NearTrueB(b_list):
     index = dis.index(min(dis))
     return b_list[index], index
 
+def MoveFile():
+    pass
+
 
 def GetDWIPath(case):
     print(case)
@@ -117,9 +120,84 @@ def xxx():
             if len(b_list) == 1:
                 print(case)
 
+def SelectBinTest():
+    test_folder = r'X:\CNNFormatData\ProstateCancerECE\NPYNoDivide\Test\DwiSlice'
+    des_folder = r'X:\CNNFormatData\ProstateCancerECE\NPYNoDivide\Test\DWISliceb1500'
+    b_folder = r'X:\PrcoessedData\ProstateCancerECE'
+    b_value = ['0', '50', '700', '750', '1400', '1500']
+    for num, case in enumerate(os.listdir(test_folder)):
+
+        case_name = case[:case.index('_slice')]
+        case_path = os.path.join(test_folder, case)
+        des_path = os.path.join(des_folder, case)
+
+        # if os.path.exists(os.path.join(b_folder, case_name + '/dwi.bval')):
+        #     bval_path = os.path.join(b_folder,  case_name + '/dwi.bval')
+        #     b_list = open(bval_path, 'r').read().split()
+        #     b, index = NearTrueB(b_list)
+        #
+        #     if float(b) >= 1000:
+        #         shutil.copy(case_path, des_path)
+        #         print('number:{}, {} b is {}, copy sucessfully!'.format(num, case_name, b))
+        #         pass
+        #     else:
+        #         print('number:{}, {} b is {}, do not copy.'.format(num, case_name, b))
+        #
+        # elif os.path.exists(os.path.join(b_folder, case_name + '/dki.bval')):
+        #     bval_path = os.path.join(b_folder,  case_name + '/dki.bval')
+        #     b_list = open(bval_path, 'r').read().split()
+        #     b, index = NearTrueB(b_list)
+        #
+        #     if float(b) >= 1000:
+        #         shutil.copy(case_path, des_path)
+        #         print('number:{}, {} b is {}, copy sucessfully!'.format(num, case_name, b))
+        #         pass
+        #     else:
+        #         print('number:{}, {} b is {}, do not copy.'.format(num, case_name, b))
+        #
+        # else:
+        #     for b in reversed(b_value):
+        #         if os.path.exists(os.path.join(b_folder, case_name + '/dwi_b' + str(b) + '.nii')) \
+        #                 or os.path.exists(os.path.join(b_folder, case_name + '/dki_b' + str(b) + '.nii')):
+        #             if float(b) >= 1000:
+        #                 shutil.copy(case_path, des_path)
+        #                 print('number:{}, {} b is {}, copy sucessfully!'.format(num, case_name, b))
+        #                 break
+        #             else:
+        #                 print('number:{}, {} b is {}, do not copy.'.format(num, case_name, b))
+
+
+
+        if os.path.exists(os.path.join(b_folder, case_name + '/dwi.bval')):
+            bval_path = os.path.join(b_folder,  case_name + '/dwi.bval')
+            b_list = open(bval_path, 'r').read().split()
+            b, index = NearTrueB(b_list)
+            if float(b) < 1000:
+                # pass
+                print(case_name)
+                print('b is {}.'.format(b))
+
+        elif os.path.exists(os.path.join(b_folder, case_name + '/dki.bval')):
+            bval_path = os.path.join(b_folder,  case_name + '/dki.bval')
+            b_list = open(bval_path, 'r').read().split()
+            b, index = NearTrueB(b_list)
+            if float(b) < 1000:
+                # pass
+                print(case_name)
+                print('b is {}..'.format(b))
+
+        else:
+            # print(case_name)
+            for b in reversed(b_value):
+                if os.path.exists(os.path.join(b_folder, case_name + '/dwi_b' + str(b) + '.nii')) \
+                        or os.path.exists(os.path.join(b_folder, case_name + '/dki_b' + str(b) + '.nii')):
+                    if float(b) < 1000:
+                        print(case_name)
+                        print('b is {}...'.format(b))
+                        break
 
 if __name__ == '__main__':
-    test()
+    SelectBinTest()
 
 
 

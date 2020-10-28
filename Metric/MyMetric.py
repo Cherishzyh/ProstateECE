@@ -1,8 +1,3 @@
-# 分割模型（参考周五段毅汇报的那篇综述，中间有一块描述怎么计算）：
-# 模型输入有两个：模型分割的ROI（二值化的np.array 2D/3D）和模型真实ROI（二值化的np.array 2D/3D）。
-
-# 如果是多标签分类，每个做单独统计
-
 import torch
 import torch.nn as nn
 import os
@@ -112,7 +107,7 @@ class BinaryClassification(object):
 
         self._DrawRoc.set_store_path(os.path.join(store_folder, 'ROC.{}'.format(store_format)))
         self._DrawBox.set_store_path(os.path.join(store_folder, 'Box.{}'.format(store_format)))
-        self._DrawProbability.set_store_path(os.path.join(store_folder, 'Probability.{}'.format(store_format)))
+        # self._DrawProbability.set_store_path(os.path.join(store_folder, 'Probability.{}'.format(store_format)))
         self._CalibrationCurve.set_store_path(os.path.join(store_folder, 'Calibration.{}'.format(store_format)))
 
     def __Auc(self, y_true, y_pred, ci_index=0.95):
@@ -152,7 +147,7 @@ class BinaryClassification(object):
         return single_auc, mean_auc, std_auc, ci
 
     @dict_decorator()
-    def _ConfusionMatrix(self, prediction, label, label_legend, own_threshold=None):
+    def _ConfusionMatrix(self, prediction, label, own_threshold=None):
         prediction, label = np.array(prediction), np.array(label)
 
         if len(prediction.shape) == 2:
@@ -180,6 +175,7 @@ class BinaryClassification(object):
             pred[prediction >= own_threshold] = 1
             C = metrics.confusion_matrix(label, pred, labels=[1, 0])
 
+        print(C)
         self._metric['accuracy'] = np.where(pred == label)[0].size / label.size
         if np.sum(C[0, :]) < 1e-6:
             self._metric['sensitivity'] = 0
@@ -197,6 +193,14 @@ class BinaryClassification(object):
             self._metric['NPV'] = 0
         else:
             self._metric['NPV'] = C[1, 1] / np.sum(C[:, 1])
+        if np.sum(C[:, 1]) < 1e-6:
+            self._metric['Precision'] = 0
+        else:
+            self._metric['Precision'] = C[0, 0] / np.sum(C[:, 0])
+        if np.sum(C[:, 1]) < 1e-6:
+            self._metric['Recall'] = 0
+        else:
+            self._metric['Recall'] = C[0, 0] / np.sum(C[0, :])
 
         single_auc, mean_auc, std, ci = self.__Auc(label, prediction, ci_index=0.95)
         self._metric['AUC'] = single_auc
@@ -252,13 +256,16 @@ class BinaryClassification(object):
         plt.ylim([-0.05, 1.05])
         plt.legend(loc="lower right")
 
-    def Run(self, pred, label, label_legend=('Negative', 'Positive'), store_folder=r''):
+    def Run(self, pred, label, label_legend=('Negative', 'Positive'), store_folder=r'', threshould=None):
         assert(isinstance(pred, list))
         assert(isinstance(label, list))
 
-        self._ConfusionMatrix(pred, label, label_legend)
+        if threshould == None:
+            threshould = self._metric['Youden Index']
+
+        self._ConfusionMatrix(pred, label, own_threshold=threshould)
         self._DrawRoc(pred, label)
-        self._DrawProbability(pred, label, youden_index=self._metric['Youden Index'])
+        self._DrawProbability(pred, label, threshould)
         self._DrawBox(pred, label, label_legend)
         self._CalibrationCurve(pred, label)
 

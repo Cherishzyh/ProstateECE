@@ -7,7 +7,7 @@ from MeDIT.SaveAndLoad import LoadNiiData
 from MeDIT.Visualization import Imshow3DArray
 from MeDIT.Normalize import Normalize01
 
-from FilePath import resample_folder, csv_path, process_folder
+# from FilePath import resample_folder, csv_path, process_folder
 
 
 def SelectMaxRoiSlice(roi):
@@ -39,20 +39,22 @@ def GetRoiSize(roi):
 def GetRoiCenter(roi):
     roi_row = []
     roi_column = []
-    for row in range(roi.shape[0]):
-        roi_row.append(np.sum(roi[row, ...]))
-    for column in range(roi.shape[1]):
-        roi_column.append(np.sum(roi[..., column]))
+    for up in range(roi.shape[0]):
+        roi_row.append(np.sum(roi[up, ...]))
+    for left in range(roi.shape[1]):
+        roi_column.append(np.sum(roi[..., left]))
 
     max_row = max(roi_row)
     max_column = max(roi_column)
     row_index = roi_row.index(max_row)
     column_index = roi_column.index(max_column)
 
-    column = np.argmax(roi[row_index])
-    row = np.argmax(roi[..., column_index])
-    center = [int(row + max_row//2), int(column + max_column//2)]
-    return center
+    left = np.argmax(roi[row_index])
+    up = np.argmax(roi[..., column_index])
+    center = (int(left + max_row//2), int(up + max_column//2))
+    right = left + max_row
+    bottle = up + max_column
+    return center, (int(up), int(bottle), int(left), int(right))
 
 
 def KeepLargest(mask):

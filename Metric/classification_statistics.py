@@ -19,7 +19,7 @@ def draw_roc(fpr_list, tpr_list, auc_list, name_list):
         label = name_list[idx] + ': ' + '%.3f'%auc_list[idx]
         plt.plot(fpr_list[idx], tpr_list[idx], label=label)
 
-    plt.plot([0, 1], [0, 1], '--', color='r', label='Luck')
+    plt.plot([0, 1], [0, 1], '--', color='r')
     plt.xlabel('False Positive Rate')
     plt.ylabel('True Positive Rate')
     plt.legend()

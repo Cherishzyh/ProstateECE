@@ -98,45 +98,104 @@ def Test():
 if __name__ == '__main__':
     import numpy as np
     import os
+    from DistanceMap.FeatureMapShow import FeatureMapVisualizition
+    from SSHProject.BasicTool.MeDIT.ArrayProcess import ExtractPatch
+    from ECEDataProcess.DataProcess.MaxRoi import GetRoiCenter
 
-    # cancer_roi = np.load(r'X:\CNNFormatData\ProstateCancerECE\NPY\RoiSlice\Train\BI JUN_slice11.npy')
-    # prostate_roi = np.load(r'X:\CNNFormatData\ProstateCancerECE\NPY\ProstateSlice\Train\BI JUN_slice11.npy')
-    # cancer_roi = np.squeeze(cancer_roi)
-    # prostate_roi = np.squeeze(prostate_roi)
-    # FindRegion(prostate_roi, cancer_roi)
+    fmv = FeatureMapVisualizition()
+    data_folder = r'/home/zhangyihong/Documents/ProstateECE/NPYNoDivide'
+    cancer_folder = r'/home/zhangyihong/Documents/ProstateECE/NPYNoDivide/RoiSlice'
+    prostate_folder = r'/home/zhangyihong/Documents/ProstateECE/NPYNoDivide/ProstateSlice'
+    t2_folder = r'/home/zhangyihong/Documents/ProstateECE/NPYNoDivide/T2Slice'
 
-
-    data_folder = r'/home/zhangyihong/Documents/ProstateECE/NPY/'
-    cancer_folder = r'/home/zhangyihong/Documents/ProstateECE/NPY/RoiSlice'
-    prostate_folder = r'/home/zhangyihong/Documents/ProstateECE/NPY/ProstateSlice'
-
-    cancer_folder = os.path.join(cancer_folder, 'Validation')
-    cancer_list = os.listdir(cancer_folder)
-    prostate_folder = os.path.join(prostate_folder, 'Validation')
+    cancer_folder = os.path.join(cancer_folder, 'Test')
+    # cancer_list = os.listdir(cancer_folder)
+    prostate_folder = os.path.join(prostate_folder, 'Test')
+    t2_folder = os.path.join(t2_folder, 'Test')
     # prostate_list = os.listdir(prostate_folder)
-
-    for case in cancer_list:
+    cancer_list = ['CHEN REN_slice11.npy', 'CHEN JIA ZHEN_slice12.npy', 'Fang zhi hua_slice7.npy']
+    save_path = os.path.join(r'/home/zhangyihong/Documents/ProstateECE/DistanceMapImage', 'DistanceMap')
+    t2_list, dismap_list = [], []
+    prostate_list, pcas_list = [], []
+    for idx, case in enumerate(cancer_list):
 
         case_name = case[:case.index('.npy')]
+
         cancer_roi = np.squeeze(np.load(os.path.join(cancer_folder, case)))
         prostate_roi = np.squeeze(np.load(os.path.join(prostate_folder, case)))
+        t2 = np.squeeze(np.load(os.path.join(t2_folder, case)))
         blurry = FindRegion(prostate_roi, cancer_roi)
-        blurry = blurry[np.newaxis, ...]
-        np.save(os.path.join(r'/home/zhangyihong/Documents/ProstateECE/NPY/DistanceMap/Validation', case), blurry)
-        # plt.imshow(blurry, vmax=1., vmin=0.)
-        # plt.colorbar()
-        # plt.savefig(os.path.join(r'/home/zhangyihong/Documents/ProstateECE/NPY/DistanceMap', case_name+'.jpg'))
-        # plt.close()
 
-        print(case_name)
-    # case_name = r'XWZ^xiong wei zhi_slice12.npy'
-    # cancer_roi = np.squeeze(np.load(os.path.join(cancer_folder, case_name)))
-    # prostate_roi = np.squeeze(np.load(os.path.join(prostate_folder, case_name)))
-    # plt.suptitle(case_name)
-    # plt.subplot(121)
-    # plt.title('PCa')
-    # plt.imshow(cancer_roi)
-    # plt.subplot(122)
-    # plt.title('Prostate')
-    # plt.imshow(prostate_roi)
+        # crop
+        center = GetRoiCenter(prostate_roi)
+        t2_crop, _ = ExtractPatch(t2, (120, 120), center_point=center)
+        cancer_crop, _ = ExtractPatch(cancer_roi, (120, 120), center_point=center)
+        prostate_crop, _ = ExtractPatch(prostate_roi, (120, 120), center_point=center)
+        blurry_crop, _ = ExtractPatch(blurry, (120, 120), center_point=center)
+
+        blurry_roi = np.where(blurry_crop < 0.1, 0, 1)
+        merged_roi = fmv.ShowColorByROI(t2_crop, blurry_crop, blurry_roi, color_map='jet', is_show=False)
+        prostate_list.append(prostate_crop)
+        pcas_list.append(cancer_crop)
+        t2_list.append(t2_crop)
+        dismap_list.append(merged_roi)
+        # blurry = blurry[np.newaxis, ...]
+        # np.save(os.path.join(r'/home/zhangyihong/Documents/ProstateECE/NPYNoDivide/DistanceMap/Validation', case), blurry)
+        # plt.suptitle(case_name)
+
+    fig = plt.figure(figsize=(9, 6))
+
+    l = 0.92
+    b = 0.12
+    w = 0.015
+    h = 0.37
+    # 对应 l,b,w,h；设置colorbar位置；
+    rect = [l, b, w, h]
+    cbar_ax = fig.add_axes(rect)
+
+    plt.subplot(2, 3, 1)
+    plt.axis('off')
+    plt.imshow(t2_list[0], cmap='gray',)
+    plt.contour(prostate_list[0], colors='r', linewidths=0.5)
+    plt.contour(pcas_list[0], colors='y', linewidths=0.5)
+
+    plt.subplot(2, 3, 4)
+    plt.imshow(dismap_list[0], cmap='jet')
+    plt.axis('off')
+
+    plt.subplot(2, 3, 2)
+    plt.axis('off')
+    plt.imshow(t2_list[1], cmap='gray')
+    plt.contour(prostate_list[1], colors='r', linewidths=0.5)
+    plt.contour(pcas_list[1], colors='y', linewidths=0.5)
+
+    plt.subplot(2, 3, 5)
+    plt.imshow(dismap_list[1], cmap='jet')
+    plt.axis('off')
+
+    plt.subplot(2, 3, 3)
+    plt.axis('off')
+    plt.imshow(t2_list[2], cmap='gray')
+    plt.contour(prostate_list[2], colors='r', linewidths=0.5)
+    plt.contour(pcas_list[2], colors='y', linewidths=0.5)
+
+    plt.subplot(2, 3, 6)
+    plt.imshow(dismap_list[2], cmap='jet')
+    plt.colorbar(cax=cbar_ax)
+    plt.axis('off')
+
+    plt.gca().set_axis_off()
+    plt.gca().xaxis.set_major_locator(plt.NullLocator())
+    plt.gca().yaxis.set_major_locator(plt.NullLocator())
+
+    plt.subplots_adjust(left=None, bottom=None, right=0.9, top=None,
+                        wspace=0.01, hspace=0.01)
+
+    # fig.subplots_adjust(right=0.9)
+
+    # plt.savefig(save_path + '.tif', format='tif', dpi=1200, bbox_inches='tight', pad_inches=0.05)
+    plt.savefig(save_path + '.eps', format='eps', dpi=600, bbox_inches='tight', pad_inches=0.05)
     # plt.show()
+    plt.close()
+    plt.clf()
+

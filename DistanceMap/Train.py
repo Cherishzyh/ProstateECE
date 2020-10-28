@@ -10,7 +10,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 from tensorboardX import SummaryWriter
 
-from T4T.Utility.Data import *
+from SSHProject.CnnTools.T4T.Utility.Data import *
 from SSHProject.BasicTool.MeDIT.Augment import config_example
 from T4T.Utility.Loss import DiceLoss, CrossEntropy
 from MeDIT.Visualization import Imshow3DArray

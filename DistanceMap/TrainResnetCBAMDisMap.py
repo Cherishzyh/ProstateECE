@@ -13,6 +13,7 @@ from tensorboardX import SummaryWriter
 
 from SSHProject.CnnTools.T4T.Utility.Data import *
 from SSHProject.CnnTools.T4T.Utility.CallBacks import EarlyStopping
+from SSHProject.CnnTools.T4T.Utility.Loss import CenterLoss
 from SSHProject.BasicTool.MeDIT.Augment import config_example
 
 from MyModel.ResnetCBAMDisMapv1 import ResNet
@@ -123,7 +124,8 @@ def Train():
     train_loader, validation_loader = LoadTVData()
     model = ResNet(3, 1).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-    criterion = nn.BCEWithLogitsLoss()
+    criterion1 = nn.BCEWithLogitsLoss()
+    criterion2 = CenterLoss()
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', patience=20, factor=0.5, verbose=True)
     early_stopping = EarlyStopping(store_path=str(model_folder + '/{}-{:.6f}.pt'), patience=50, verbose=True)
     writer = SummaryWriter(log_dir=graph_path, comment='Net')
@@ -144,7 +146,7 @@ def Train():
             class_out = model(inputs, dismap)
             class_out_sigmoid = class_out.sigmoid()
 
-            loss = criterion(class_out, ece)
+            loss = criterion1(class_out, ece) + criterion2(class_out, ece)
 
             optimizer.zero_grad()
             loss.backward()

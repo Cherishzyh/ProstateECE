@@ -10,6 +10,13 @@ import matplotlib.pyplot as plt
 from MyModel.Block import conv1x1, conv3x3
 
 
+'''
+v1: all layers add distance map
+v2: only layer1 and layer2 add distance map
+
+'''
+
+
 class ChannelAttention(nn.Module):
     def __init__(self, in_planes, ratio=16):
         super(ChannelAttention, self).__init__()
@@ -26,10 +33,6 @@ class ChannelAttention(nn.Module):
         avg_out = self.fc2(self.relu1(self.fc1(self.avg_pool(x))))
         max_out = self.fc2(self.relu1(self.fc1(self.max_pool(x))))
         out = avg_out + max_out
-
-        # plt.imshow(out.sigmoid().cpu().detach().numpy()[0, 0, ...], cmap='gray')
-        # plt.title('CA')
-        # plt.show()
 
         return self.sigmoid(out)
 
@@ -93,33 +96,33 @@ class DisBottleneck(nn.Module):
         out = self.conv3(out)
         out = self.bn3(out)
 
-        plt.subplot(231)
-        plt.title('orignal fm')
-        plt.imshow(torch.squeeze(out)[0, ...].cpu().detach(), cmap='gray')
+        # plt.subplot(231)
+        # plt.title('orignal fm')
+        # plt.imshow(torch.squeeze(out)[0, ...].cpu().detach(), cmap='gray')
 
         shape = out.shape[2:]
         dis_map_resize = F.interpolate(dis_map, size=shape, mode='bilinear')
-        plt.subplot(236)
-        plt.title('dm')
-        plt.imshow(torch.squeeze(dis_map_resize).cpu().detach(), cmap='gray')
+        # plt.subplot(236)
+        # plt.title('dm')
+        # plt.imshow(torch.squeeze(dis_map_resize).cpu().detach(), cmap='gray')
 
         out = self.ca(out) * out
 
-        plt.subplot(232)
-        plt.title('ca fm')
-        plt.imshow(torch.squeeze(out)[0, ...].cpu().detach(), cmap='gray')
+        # plt.subplot(232)
+        # plt.title('ca fm')
+        # plt.imshow(torch.squeeze(out)[0, ...].cpu().detach(), cmap='gray')
 
         out_fm = self.sa(out) * out
 
-        plt.subplot(233)
-        plt.title('sa fm')
-        plt.imshow(torch.squeeze(out_fm)[0, ...].cpu().detach(), cmap='gray')
+        # plt.subplot(233)
+        # plt.title('sa fm')
+        # plt.imshow(torch.squeeze(out_fm)[0, ...].cpu().detach(), cmap='gray')
 
         out_dm = dis_map_resize * out
 
-        plt.subplot(234)
-        plt.title('dis map')
-        plt.imshow(torch.squeeze(out_dm)[0, ...].cpu().detach(), cmap='gray')
+        # plt.subplot(234)
+        # plt.title('dis map')
+        # plt.imshow(torch.squeeze(out_dm)[0, ...].cpu().detach(), cmap='gray')
 
         out = torch.cat([out_fm, out_dm], dim=1)
 
@@ -128,13 +131,10 @@ class DisBottleneck(nn.Module):
 
         out += residual
 
-        plt.subplot(235)
-        plt.title('out + residual')
-        plt.imshow(torch.squeeze(out)[0, ...].cpu().detach(), cmap='gray')
-
-
-        plt.show()
-
+        # plt.subplot(235)
+        # plt.title('out + residual')
+        # plt.imshow(torch.squeeze(out)[0, ...].cpu().detach(), cmap='gray')
+        # plt.show()
 
         out = self.relu(out)
 

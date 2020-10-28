@@ -5,7 +5,7 @@ import numpy as np
 
 from MeDIT.SaveAndLoad import LoadH5
 
-from FilePath import *
+# from FilePath import *
 from ECEDataProcess.DataProcess.SelectDWI import NearTrueB
 # 正负样本比例1:3
 # b值800的在test
@@ -156,8 +156,8 @@ if __name__ == '__main__':
     #             print(case)
 
     # csv_path = r'/home/zhangyihong/Documents/ProstateECE/NPYPreTrain/csv/ece.csv'
-    cnn_folder = r'/home/zhangyihong/Documents/ProstateECE/NPYPreTrain/RoiSlice/Test'
-    pre_train_folder = r'/home/zhangyihong/Documents/ProstateECE/NPYPreTrain/RoiSlice/PreValid'
+    # cnn_folder = r'/home/zhangyihong/Documents/ProstateECE/NPYPreTrain/RoiSlice/Test'
+    # pre_train_folder = r'/home/zhangyihong/Documents/ProstateECE/NPYPreTrain/RoiSlice/PreValid'
     #
     # info = pd.read_csv(csv_path, usecols=['case', 'pECE'], index_col=['case'])
     #
@@ -170,4 +170,10 @@ if __name__ == '__main__':
     # aver = ComputeV(Test_path)
     # print(aver)
     # Divide(cnn_folder, pre_train_folder)
-    CopyData(pre_train_folder, cnn_folder)
+    # CopyData(pre_train_folder, cnn_folder)
+    test_folder = r'X:\CNNFormatData\ProstateCancerECE\NPYNoDivide\Test\AdcSlice'
+    source_folder = r'Y:\ZYH\ResampleData'
+    des_folder = r'Y:\ZYH\Test'
+    for case in os.listdir(test_folder):
+        case_name = case[:case.index('_slice')]
+        shutil.move(os.path.join(source_folder, case_name), os.path.join(des_folder, case_name))

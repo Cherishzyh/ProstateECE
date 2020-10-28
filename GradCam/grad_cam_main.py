@@ -11,21 +11,7 @@ import torch.nn.functional as F
 import matplotlib.pyplot as plt
 from torchvision import models, transforms
 
-from SSHProject.BasicTool.MeDIT.Normalize import Normalize01
-from SSHProject.BasicTool.MeDIT.Visualization import FusionImage
 
-# from torchviz import make_dot
-
-from GradCam.grad_cam import (
-    BackPropagation,
-    Deconvnet,
-    GradCAM,
-    GuidedBackPropagation,
-    occlusion_sensitivity,
-)
-
-# if a model includes LSTM, such as in image captioning,
-# torch.backends.cudnn.enabled = False
 
 
 def get_device(cuda):
@@ -43,17 +29,22 @@ def load_images(image_paths):
     images = []
     raw_images = []
     print("Images:")
-    for i, image_path in enumerate(image_paths):
-        print("\t#{}: {}".format(i, image_path))
-        image, raw_image = preprocess(image_path)
+    if isinstance(image_paths, str):
+        image, raw_image = preprocess(image_paths)
         images.append(image)
         raw_images.append(raw_image)
+    else:
+        for i, image_path in enumerate(image_paths):
+            print("\t#{}: {}".format(i, image_path))
+            image, raw_image = preprocess(image_path)
+            images.append(image)
+            raw_images.append(raw_image)
     return images, raw_images
 
 
 def get_classtable():
     classes = []
-    with open("GradCamFolder/synset_words.txt") as lines:
+    with open("synset_words.txt") as lines:
         for line in lines:
             line = line.strip().split(" ", 1)[1]
             line = line.split(", ", 1)[0].replace(" ", "_")
@@ -81,35 +72,47 @@ def save_gradient(filename, gradient):
     cv2.imwrite(filename, np.uint8(gradient))
 
 
-def save_gradcam(filename, gcam, raw_image, paper_cmap=False):
-    # gcam = gcam.cpu().numpy()
-    # cmap = cm.jet_r(gcam)[..., :3] * 255.0
-    #
-    # if paper_cmap:
-    #     alpha = gcam[..., None]
-    #     gcam = alpha * cmap + (1 - alpha) * raw_image
-    # else:
-    #     gcam = (cmap.astype(np.float) + raw_image.astype(np.float)) / 2
-
+def save_gradcam(gcam):
     gcam = gcam.cpu().numpy()
 
     ##################
-    if isinstance(raw_image, torch.Tensor):
-        raw_image = torch.squeeze(raw_image).numpy()
+    # if isinstance(raw_image, torch.Tensor):
+    #     raw_image = torch.squeeze(raw_image).numpy()
 
-    plt.subplot(121)
-    plt.imshow(Normalize01(gcam), cmap='gray', vmin=0.0, vmax=1.0)
-    plt.subplot(122)
-    plt.imshow(raw_image, cmap='gray')
-    plt.show()
+    # plt.subplot(121)
+    # plt.imshow(Normalize01(np.squeeze(gcam)), cmap='jet')
+    # plt.colorbar()
+    # plt.subplot(122)
+    # plt.imshow(Normalize01(np.squeeze(raw_image)), cmap='jet')
+    # plt.show()
 
-    if paper_cmap:
-        alpha = gcam[..., None]
-        gcam = alpha * gcam + (1 - alpha) * raw_image
-    else:
-        gcam = (gcam.astype(np.float) + raw_image.astype(np.float)) / 2
+    # merged_image = FusionImage(Normalize01(raw_image), Normalize01(gcam), is_show=is_show)
+    return gcam
 
-    cv2.imwrite(filename, np.uint8(gcam))
+
+
+# def save_gradcam(filename, gcam, raw_image, paper_cmap=False):
+#     gcam = gcam.cpu().numpy()
+#     cmap = cm.jet_r(gcam)[..., :3] * 255.0
+#
+#     if paper_cmap:
+#         alpha = gcam[..., None]
+#         gcam = alpha * cmap + (1 - alpha) * raw_image
+#     else:
+#         gcam = (cmap.astype(np.float) + raw_image.astype(np.float)) / 2
+#
+#
+#     ##################
+#     if isinstance(raw_image, torch.Tensor):
+#         raw_image = torch.squeeze(raw_image).numpy()
+#
+#     if paper_cmap:
+#         alpha = gcam[..., None]
+#         gcam = alpha * gcam + (1 - alpha) * raw_image
+#     else:
+#         gcam = (gcam.astype(np.float) + raw_image.astype(np.float)) / 2
+#
+#     cv2.imwrite(filename, np.uint8(gcam))
 
 
 def save_sensitivity(filename, maps):
@@ -123,271 +126,6 @@ def save_sensitivity(filename, maps):
     cv2.imwrite(filename, maps)
 
 
-# torchvision models
-model_names = sorted(
-    name
-    for name in models.__dict__
-    if name.islower() and not name.startswith("__") and callable(models.__dict__[name])
-)
-
-
-# @click.group()
-# @click.pass_context
-def main(ctx):
-    print("Mode:", ctx.invoked_subcommand)
-
-
-# @main.command()
-# @click.option("-i", "--image-paths", type=str, multiple=True, required=True)
-# @click.option("-a", "--arch", type=click.Choice(model_names), required=True)
-# @click.option("-t", "--target-layer", type=str, required=True)
-# @click.option("-k", "--topk", type=int, default=3)
-# @click.option("-o", "--output-dir", type=str, default="./results")
-# @click.option("--cuda/--cpu", default=True)
-def demo1(image_paths, target_layer, arch, topk, output_dir, cuda):
-    """
-    Visualize model responses given multiple images
-    """
-
-    device = get_device(cuda)
-
-    # Synset words
-    classes = get_classtable()
-
-    # MyModel from torchvision
-    model = models.__dict__[arch](pretrained=True)
-    model.to(device)
-    model.eval()
-
-    # Images
-    images, raw_images = load_images(image_paths)
-    images = torch.stack(images).to(device)
-
-    """
-    Common usage:
-    1. Wrap your model with visualization classes defined in GradCamFolder.py
-    2. Run forward() with images
-    3. Run backward() with a list of specific classes
-    4. Run generate() to export results
-    """
-
-    # =========================================================================
-    print("Vanilla Backpropagation:")
-
-    bp = BackPropagation(model=model)
-    probs, ids = bp.forward(images)  # sorted
-
-    for i in range(topk):
-        bp.backward(ids=ids[:, [i]])
-        gradients = bp.generate()
-
-        # Save results as image files
-        for j in range(len(images)):
-            print("\t#{}: {} ({:.5f})".format(j, classes[ids[j, i]], probs[j, i]))
-
-            save_gradient(
-                filename=osp.join(
-                    output_dir,
-                    "{}-{}-vanilla-{}.png".format(j, arch, classes[ids[j, i]]),
-                ),
-                gradient=gradients[j],
-            )
-
-    # Remove all the hook function in the "model"
-    bp.remove_hook()
-
-    # =========================================================================
-    print("Deconvolution:")
-
-    deconv = Deconvnet(model=model)
-    _ = deconv.forward(images)
-
-    for i in range(topk):
-        deconv.backward(ids=ids[:, [i]])
-        gradients = deconv.generate()
-
-        for j in range(len(images)):
-            print("\t#{}: {} ({:.5f})".format(j, classes[ids[j, i]], probs[j, i]))
-
-            save_gradient(
-                filename=osp.join(
-                    output_dir,
-                    "{}-{}-deconvnet-{}.png".format(j, arch, classes[ids[j, i]]),
-                ),
-                gradient=gradients[j],
-            )
-
-    deconv.remove_hook()
-
-    # =========================================================================
-    print("Grad-GradCam/Guided Backpropagation/Guided Grad-GradCam:")
-
-    gcam = GradCAM(model=model)
-    _ = gcam.forward(images)
-
-    gbp = GuidedBackPropagation(model=model)
-    _ = gbp.forward(images)
-
-    for i in range(topk):
-        # Guided Backpropagation
-        gbp.backward(ids=ids[:, [i]])
-        gradients = gbp.generate()
-
-        # Grad-GradCam
-        gcam.backward(ids=ids[:, [i]])
-        regions = gcam.generate(target_layer=target_layer)
-
-        for j in range(len(images)):
-            print("\t#{}: {} ({:.5f})".format(j, classes[ids[j, i]], probs[j, i]))
-
-            # Guided Backpropagation
-            save_gradient(
-                filename=osp.join(
-                    output_dir,
-                    "{}-{}-guided-{}.png".format(j, arch, classes[ids[j, i]]),
-                ),
-                gradient=gradients[j],
-            )
-
-            # Grad-GradCam
-            save_gradcam(
-                filename=osp.join(
-                    output_dir,
-                    "{}-{}-gradcam-{}-{}.png".format(
-                        j, arch, target_layer, classes[ids[j, i]]
-                    ),
-                ),
-                gcam=regions[j, 0],
-                raw_image=raw_images[j],
-            )
-
-            # Guided Grad-GradCam
-            save_gradient(
-                filename=osp.join(
-                    output_dir,
-                    "{}-{}-guided_gradcam-{}-{}.png".format(
-                        j, arch, target_layer, classes[ids[j, i]]
-                    ),
-                ),
-                gradient=torch.mul(regions, gradients)[j],
-            )
-
-
-# @main.command()
-# @click.option("-i", "--image-paths", type=str, multiple=True, required=True)
-# @click.option("-o", "--output-dir", type=str, default="./results")
-# @click.option("--cuda/--cpu", default=True)
-def demo2(image_paths, output_dir, cuda):
-    """
-    Generate Grad-GradCam at different layers of ResNet-152
-    """
-
-    device = get_device(cuda)
-
-    # Synset words
-    classes = get_classtable()
-
-    # MyModel
-    model = models.resnet152(pretrained=True)
-    model.to(device)
-    model.eval()
-
-    # The four residual layers
-    target_layers = ["relu", "layer1", "layer2", "layer3", "layer4"]
-    target_class = 243  # "bull mastif"
-
-    # Images
-    images, raw_images = load_images(image_paths)
-    images = torch.stack(images).to(device)
-
-    gcam = GradCAM(model=model)
-    probs, ids = gcam.forward(images)
-    ids_ = torch.LongTensor([[target_class]] * len(images)).to(device)
-    gcam.backward(ids=ids_)
-
-    for target_layer in target_layers:
-        print("Generating Grad-GradCam @{}".format(target_layer))
-
-        # Grad-GradCam
-        regions = gcam.generate(target_layer=target_layer)
-
-        for j in range(len(images)):
-            print(
-                "\t#{}: {} ({:.5f})".format(
-                    j, classes[target_class], float(probs[ids == target_class])
-                )
-            )
-
-            save_gradcam(
-                filename=osp.join(
-                    output_dir,
-                    "{}-{}-gradcam-{}-{}.png".format(
-                        j, "resnet152", target_layer, classes[target_class]
-                    ),
-                ),
-                gcam=regions[j, 0],
-                raw_image=raw_images[j],
-            )
-
-
-# @main.command()
-# @click.option("-i", "--image-paths", type=str, multiple=True, required=True)
-# @click.option("-a", "--arch", type=click.Choice(model_names), required=True)
-# @click.option("-k", "--topk", type=int, default=3)
-# @click.option("-s", "--stride", type=int, default=1)
-# @click.option("-b", "--n-batches", type=int, default=128)
-# @click.option("-o", "--output-dir", type=str, default="./results")
-# @click.option("--cuda/--cpu", default=True)
-def demo3(image_paths, arch, topk, stride, n_batches, output_dir, cuda):
-    """
-    Generate occlusion sensitivity maps
-    """
-
-    device = get_device(cuda)
-
-    # Synset words
-    classes = get_classtable()
-
-    # MyModel from torchvision
-    model = models.__dict__[arch](pretrained=True)
-    model = torch.nn.DataParallel(model)
-    model.to(device)
-    model.eval()
-
-    # Images
-    images, _ = load_images(image_paths)
-    images = torch.stack(images).to(device)
-
-    print("Occlusion Sensitivity:")
-
-    patche_sizes = [10, 15, 25, 35, 45, 90]
-
-    logits = model(images)
-    probs = F.softmax(logits, dim=1)
-    probs, ids = probs.sort(dim=1, descending=True)
-
-    for i in range(topk):
-        for p in patche_sizes:
-            print("Patch:", p)
-            sensitivity = occlusion_sensitivity(
-                model, images, ids[:, [i]], patch=p, stride=stride, n_batches=n_batches
-            )
-
-            # Save results as image files
-            for j in range(len(images)):
-                print("\t#{}: {} ({:.5f})".format(j, classes[ids[j, i]], probs[j, i]))
-
-                save_sensitivity(
-                    filename=osp.join(
-                        output_dir,
-                        "{}-{}-sensitivity-{}-{}.png".format(
-                            j, arch, p, classes[ids[j, i]]
-                        ),
-                    ),
-                    maps=sensitivity[j],
-                )
-
-
 if __name__ == "__main__":
     # main()
-    demo2(['GradCamFolder\cat_dog_original.jpg'], 'GradCamFolder', 'cpu')
+    pass
