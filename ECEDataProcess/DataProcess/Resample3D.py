@@ -99,7 +99,7 @@ def ResampleData():
                                        store_path=os.path.join(dest_case_folder, 'dwi_Reg.nii'))
         resampler.ResizeSipmleITKImage(adc_image, expected_resolution=[0.5, 0.5, -1],
                                        store_path=os.path.join(dest_case_folder, 'adc_Reg.nii'))
-        resampler.ResizeSipmleITKImage(roi_image, is_roi=True, expected_resolution=[0.5, 0.5, -1],
+        resampler.ResizeSipmleITKImage(roi_image, is_roi=True, ref_image=t2_image, expected_resolution=[0.5, 0.5, -1],
                                        store_path=os.path.join(dest_case_folder, 'roi.nii'))
         shutil.copy(os.path.join(case_folder, 'roi.csv'), os.path.join(dest_case_folder, 'roi.csv'),)
         break

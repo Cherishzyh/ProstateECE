@@ -229,9 +229,11 @@ class ResNeXt(nn.Module):
         x = self.layer4(x)  # shape = (12, 12)
         x = self.avgpool(x)
         x = torch.flatten(x, 1)
-        x = self.fc1(x)
-        x = self.fc2(x)
-        return torch.softmax(x, dim=1)
+        x_fcn = self.fc1(x)
+        x = self.fc2(x_fcn)
+        # return torch.softmax(x, dim=1)
+        return torch.softmax(x, dim=1), x_fcn
+        # return x
 
 
 if __name__ == '__main__':

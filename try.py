@@ -186,7 +186,7 @@ def Check():
 
 if __name__ == '__main__':
 
-    # target_folder = r'X:\RawData\GS\Prostate of RP 291\Prostate of RP 291'
+    target_folder = r'X:\RawData\GS\Prostate of RP 291\Prostate of RP 291'
     # source_folder = r'E:\RP+GS_202005\Prostate of RP 291\Prostate of RP 291'
     # source_case_list = os.listdir(source_folder)
     # target_case_list = os.listdir(target_folder)
@@ -208,5 +208,72 @@ if __name__ == '__main__':
     #                   format(case, list(set(root_list_source).difference(set(dirs_target + files_target))),
     #                          root_target.split(target_path)[-1]))
     #             print('*' * 30)
-    data = np.load(r'X:\CNNFormatData\ProstateCancerECE\NPYNoDivide\AdcSlice\BI JUN_slice11.npy')
-    print(data.shape)
+    # data = np.load(r'X:\CNNFormatData\ProstateCancerECE\NPYNoDivide\AdcSlice\BI JUN_slice11.npy')
+    # print(data.shape)
+    # train_label = np.load(r'X:\CNNFormatData\ProstateCancerECE\Result\AddClinicalNPY\FiveFeature\SUH_dis&five_label.npy')
+    # train_bj = np.load(r'X:\CNNFormatData\ProstateCancerECE\Result\NPY\SUH_bj_result.npy')
+    # train_hy = np.load(r'X:\CNNFormatData\ProstateCancerECE\Result\NPY\SUH_hy_result.npy')
+    # train_dis_ff = np.load(r'X:\CNNFormatData\ProstateCancerECE\Result\AddClinicalNPY\FiveFeature\SUH_dis&five_pred.npy')
+    # train_nodis_ff = np.load(r'X:\CNNFormatData\ProstateCancerECE\Result\AddClinicalNPY\FiveFeature\SUH_nodis&five_pred.npy')
+    # train_dis_lf = np.load(r'X:\CNNFormatData\ProstateCancerECE\Result\AddClinicalNPY\FiveFeatureLF\SUH_FiveFeature_pred.npy')
+    # train_nodis_lf = np.load(r'X:\CNNFormatData\ProstateCancerECE\Result\AddClinicalNPY\FiveFeatureLF\SUH_nodis&fivefeaturepred.npy')
+    #
+    # train_df = pd.DataFrame({'label': train_label, 'attention map, age, psa, pGS, core, b-NI in first fc': train_dis_ff,
+    #                          'age, psa, pGS, core, b-NI in first fc': train_nodis_ff,
+    #                          'attention map, age, psa, pGS, core, b-NI in last fc': train_dis_lf,
+    #                          'age, psa, pGS, core, b-NI in last fc': train_nodis_lf,
+    #                          'hy pred': train_hy,
+    #                          'bj pred': train_bj})
+    # train_df.to_csv(r'X:\CNNFormatData\ProstateCancerECE\Result\SUH_ModelVSClinical_AddFiveFeature.csv')
+    #
+    # # train_label = np.load(r'X:\CNNFormatData\ProstateCancerECE\Result\NPY\SUH_label.npy')
+    # # clinical_df = pd.DataFrame({'label': train_label, 'hy pred': train_hy, 'bj pred': train_bj})
+    # # clinical_df.to_csv(r'X:\CNNFormatData\ProstateCancerECE\Result\SUH_ModelVSClinical_AddAge&PSA_train_clinical.csv')
+    # print()
+
+
+    # train_label = np.load(r'X:\CNNFormatData\ProstateCancerECE\Result\AddClinicalNPY\FiveFeaturebGS\testJSPH_dis&five_label.npy')
+    # train_dis_ff = np.load(r'X:\CNNFormatData\ProstateCancerECE\Result\AddClinicalNPY\FiveFeaturebGS\testJSPH_dis&five_pred.npy')
+    # train_dis_lf = np.load(r'X:\CNNFormatData\ProstateCancerECE\Result\AddClinicalNPY\FiveFeatureLFbGS\testJSPH_FiveFeature_pred.npy')
+    #
+    # train_df = pd.DataFrame({'label': train_label,
+    #                          'attention map, age, psa, pGS, core, b-NI in first fc': train_dis_ff,
+    #                          'attention map, age, psa, pGS, core, b-NI in last fc': train_dis_lf})
+    # train_df.to_csv(r'X:\CNNFormatData\ProstateCancerECE\Result\JSPH_AddFiveFeature_test.csv')
+
+
+    # test_clinical = r'X:\CNNFormatData\ProstateCancerECE\NPYNoDivide\train_clinical.csv'
+    # model_pred = r'X:\CNNFormatData\ProstateCancerECE\Result\CaseH5\PAGNet\train.csv'
+    #
+    # test_clinical_df = pd.read_csv(test_clinical)
+    # model_pred_df = pd.read_csv(model_pred)
+    # for index in test_clinical_df.index:
+    #     if test_clinical_df.loc[index]['case'] != model_pred_df.loc[index]['case']:
+    #         print(index)
+    # train_1 = r'C:\Users\ZhangYihong\Desktop\PAGNet+ECE_Grade\GradeBybj\suh\train_prediction.csv'
+    # train_2 = r'C:\Users\ZhangYihong\Desktop\PAGNet+ECE_Grade\GradeBybj\test\train_prediction.csv'
+    # train_1_df = pd.read_csv(train_1)
+    # train_2_df = pd.read_csv(train_2)
+    # for index in train_1_df.index:
+    #     train_1_pred = train_1_df.loc[index]['Pred']
+    #     train_2_pred = train_2_df.loc[index]['Pred']
+    #     print(train_1_pred == train_2_pred)
+    # attentiom_map_path = r'/home/zhangyihong/Documents/ProstateECE/NPYNoDivide/DistanceMap'
+    # save_path = r'/home/zhangyihong/Documents/ProstateECE/NPYNoDivide/BinaryAttentionMap'
+    # # attentiom_map_path = r'/home/zhangyihong/Documents/ProstateECE/SUH_Dwi1500/DistanceMap'
+    # # save_path = r'/home/zhangyihong/Documents/ProstateECE/SUH_Dwi1500/BinaryAttentionMap'
+    # for case in os.listdir(attentiom_map_path):
+    #     if case == 'Test':
+    #         pass
+    #     else:
+    #         atten_map = np.load(os.path.join(attentiom_map_path, case))
+    #         binary_atten = np.where(atten_map >= 0.1, 1, 0)
+    #         np.save(os.path.join(save_path, case), binary_atten)
+        # atten_map_binary = np.load(os.path.join(save_path, case))
+        # atten_map = np.load(os.path.join(attentiom_map_path, case))
+
+
+
+
+
+

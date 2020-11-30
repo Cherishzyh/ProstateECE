@@ -57,6 +57,7 @@ if __name__ == '__main__':
     from torch.utils.data import DataLoader
 
     device = torch.device('cpu')
+    # model_root = r'/home/zhangyihong/Documents/ProstateECE/Model/ResNeXt_CBAM_CV_20200820/CV_0/31--5.778387.pt'
     model_root = r'/home/zhangyihong/Documents/ProstateECE/Model/ResNeXt_CBAM_CV_20200814/CV_1/154--7.698224.pt'
     data_root = r'/home/zhangyihong/Documents/ProstateECE/NPYNoDivide'
     output_dir = r'/home/zhangyihong/Documents/ProstateECE/grad_cam'
@@ -68,7 +69,6 @@ if __name__ == '__main__':
     input_shape = (192, 192)
 
     spliter = DataSpliter()
-    # sub_list = spliter.LoadName(data_root / '{}-name.csv'.format(data_type), contain_label=True)
     sub_list = spliter.LoadName(data_root + '/{}-name.csv'.format('test'))
 
     data = DataManager(sub_list=sub_list)
@@ -79,6 +79,7 @@ if __name__ == '__main__':
     data.AddOne(Image2D(data_root + '/ProstateSlice/Test', shape=input_shape, is_roi=True))
     data.AddOne(Image2D(data_root + '/RoiSlice/Test', shape=input_shape, is_roi=True))
     data.AddOne(Label(data_root + '/label.csv', label_tag='Negative'), is_input=False)
+    # data.AddOne(Label(data_root + '/label.csv', label_tag='Positive'), is_input=False)
     data_loader = DataLoader(data, batch_size=1, shuffle=False)
 
     for i, (inputs, outputs) in enumerate(data_loader):
@@ -87,6 +88,7 @@ if __name__ == '__main__':
             ece = outputs[0].to(device)
 
             input_list = [t2.to(device), adc.to(device), dwi.to(device), dis_map.to(device)]
+            # input_list = [t2.to(device), adc.to(device), dwi.to(device)]
 
             if ece == 0:
                 input_class = torch.tensor([1, 0]).long()
@@ -97,11 +99,11 @@ if __name__ == '__main__':
 
             center, box = GetRoiCenter(np.squeeze(inputs[4].numpy()))
 
-            center = (center[1], center[0])
+            center = (center[0], center[1])
             if i == 107:
                 shape = (120, 120)
             else:
-                shape = (140, 140)
+                shape = (160, 160)
             t2_cropped, _ = ExtractPatch(np.squeeze(inputs[0].numpy()), patch_size=shape, center_point=center)
             gradcam_cropped, _ = ExtractPatch(np.squeeze(gradcam), patch_size=shape, center_point=center)
 
@@ -122,12 +124,10 @@ if __name__ == '__main__':
             plt.subplots_adjust(left=None, bottom=None, right=None, top=None,
                                 wspace=0.00, hspace=0.01)
 
-            plt.savefig(r'/home/zhangyihong/Documents/ProstateECE/Paper/' + str(i) + '.tif', format='tif', dpi=600, bbox_inches='tight', pad_inches=0.00)
-            # plt.show()
+            # plt.savefig(r'/home/zhangyihong/Documents/ProstateECE/Paper/' + str(i) + '-RES.tif', format='tif', dpi=600, bbox_inches='tight', pad_inches=0.00)
+            plt.show()
             plt.close()
             plt.clf()
-
-            plt.show()
         else:
             continue
 

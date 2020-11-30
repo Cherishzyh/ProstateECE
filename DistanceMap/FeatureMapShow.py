@@ -7,13 +7,14 @@ import matplotlib.pyplot as plt
 import time
 # from progress.bar import IncrementalBar
 
+
 class FeatureMapVisualizition:
     def __init__(self):
         self.original_image_path = ''
         self.original_roi_path = ''
         self.feature_map_path = ''
 
-    def LoadData(self,original_image_path, original_roi_path, feature_map_path):
+    def LoadData(self, original_image_path, original_roi_path, feature_map_path):
         self.original_image_path = original_image_path
         self.original_roi_path = original_roi_path
         self.feature_map_path = feature_map_path
@@ -27,8 +28,7 @@ class FeatureMapVisualizition:
         else:
             _, _, self.original_feature_map_array = self.LoadNiiData(self.feature_map_path, is_show_info=False)
 
-
-    def GetIndexRangeInROI(self,roi_mask, target_value=1):
+    def GetIndexRangeInROI(self, roi_mask, target_value=1):
         if np.ndim(roi_mask) == 2:
             x, y = np.where(roi_mask == target_value)
             x = np.unique(x)
@@ -41,7 +41,7 @@ class FeatureMapVisualizition:
             z = np.unique(z)
             return x, y, z
 
-    def LoadNiiData(self,file_path, dtype=np.float32, is_show_info=False, is_flip=True, flip_log=[0, 0, 0]):
+    def LoadNiiData(self, file_path, dtype=np.float32, is_show_info=False, is_flip=True, flip_log=[0, 0, 0]):
         image = sitk.ReadImage(file_path)
         data = np.asarray(sitk.GetArrayFromImage(image), dtype=dtype)
 
@@ -75,7 +75,7 @@ class FeatureMapVisualizition:
       np.min(z):np.min(z) + self.original_feature_map_array.shape[2]] = self.original_feature_map_array
       return feature_roi
 
-    def Normalize01(self,data, clip=0.0):
+    def Normalize01(self, data, clip=0.0):
         new_data = np.asarray(data, dtype=np.float32)
         if clip > 1e-6:
             data_list = data.flatten().tolist()
@@ -150,6 +150,7 @@ class FeatureMapVisualizition:
 
         self.ShowColorByROI(background_array, fore_array, roi, color_map=color_map, store_path=store_path)
 
+
 def main():
     image_path = r'D:\MyScript\RadiomicsVisualization\RadiomicsFeatureVisualization\data2.nii.gz'
     roi_path = r'D:\MyScript\RadiomicsVisualization\RadiomicsFeatureVisualization\ROI.nii.gz'
@@ -163,6 +164,8 @@ def main():
     #hsv/jet/gist_rainbow
     featuremapvisualization.Show(color_map='seismic', store_path=store_figure_path)
     # featuremapvisualization.ShowTransforedImage(store_figure_path)
+
+
 if __name__ == '__main__':
     main()
 

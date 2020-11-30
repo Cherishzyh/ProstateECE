@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import numpy as np
 
 def DrawPaperImage():
     fig = plt.figure(figsize=(12, 10))
@@ -11,10 +12,10 @@ def DrawPaperImage():
 
     plt.subplot(121)
     plt.axis('off')
-    # plt.imshow(np.squeeze(t2), cmap='gray')
+    plt.imshow(np.squeeze(t2), cmap='gray')
     plt.subplot(122)
     plt.axis('off')
-    # plt.imshow(np.squeeze(merged_image), cmap='jet')
+    plt.imshow(np.squeeze(merged_image), cmap='jet')
     plt.colorbar(cax=cbar_ax)
 
     plt.gca().set_axis_off()

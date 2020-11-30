@@ -2,8 +2,10 @@ from copy import deepcopy
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.ndimage.morphology import binary_erosion, binary_dilation
+import os
 
 from MeDIT.SaveAndLoad import LoadImage
+
 
 def BlurryEdge(roi, step=10):
     kernel = np.ones((3, 3))
@@ -14,6 +16,7 @@ def BlurryEdge(roi, step=10):
         temp_roi = binary_dilation(temp_roi, kernel)
 
     return result
+
 
 def ExtractEdge(roi, kernel=np.ones((3, 3))):
     # plt.subplot(121)
@@ -34,6 +37,7 @@ def ExtractEdge(roi, kernel=np.ones((3, 3))):
     return binary_dilation(roi.astype(bool), kernel, iterations=2).astype(int) - \
            binary_erosion(roi.astype(bool), kernel, iterations=2).astype(int)
 
+
 def DetectRegion(roi0, roi1):
     kernel = np.ones((3, 3))
     roi0_edge = ExtractEdge(roi0, kernel)
@@ -45,6 +49,7 @@ def DetectRegion(roi0, roi1):
     region = roi1_out + (roi1_edge * roi0_edge)
     region[region > 1] = 1
     return region
+
 
 def DetectCloseRegion(roi0, roi1, step=10, kernel=np.ones((3, 3))):
     roi0_edge, roi1_edge = ExtractEdge(roi0), ExtractEdge(roi1)
@@ -61,6 +66,7 @@ def DetectCloseRegion(roi0, roi1, step=10, kernel=np.ones((3, 3))):
         roi1_edge = binary_dilation(roi1_edge.astype(bool), kernel)
 
     return diff, ratio
+
 
 def FindRegion(roi0, roi1):
     # 寻找结合点
@@ -82,6 +88,7 @@ def FindRegion(roi0, roi1):
 
     return blurry
 
+
 def Test():
     roi = np.zeros((256, 256))
     roi1 = np.zeros((256, 256))
@@ -91,18 +98,14 @@ def Test():
     roi1[60:100, 60:100] = 1
     roi2[40:100, 40:100] = 1
 
-    blurry = FindRegion(roi, roi1)
+    # blurry = FindRegion(roi, roi1)
     blurry = FindRegion(roi, roi2)
 
 
-if __name__ == '__main__':
-    import numpy as np
-    import os
-    from DistanceMap.FeatureMapShow import FeatureMapVisualizition
+def MergedDistanceMap():
+    from SSHProject.BasicTool.MeDIT.Visualization import ShowColorByRoi
     from SSHProject.BasicTool.MeDIT.ArrayProcess import ExtractPatch
     from ECEDataProcess.DataProcess.MaxRoi import GetRoiCenter
-
-    fmv = FeatureMapVisualizition()
     data_folder = r'/home/zhangyihong/Documents/ProstateECE/NPYNoDivide'
     cancer_folder = r'/home/zhangyihong/Documents/ProstateECE/NPYNoDivide/RoiSlice'
     prostate_folder = r'/home/zhangyihong/Documents/ProstateECE/NPYNoDivide/ProstateSlice'
@@ -118,9 +121,7 @@ if __name__ == '__main__':
     t2_list, dismap_list = [], []
     prostate_list, pcas_list = [], []
     for idx, case in enumerate(cancer_list):
-
         case_name = case[:case.index('.npy')]
-
         cancer_roi = np.squeeze(np.load(os.path.join(cancer_folder, case)))
         prostate_roi = np.squeeze(np.load(os.path.join(prostate_folder, case)))
         t2 = np.squeeze(np.load(os.path.join(t2_folder, case)))
@@ -134,7 +135,7 @@ if __name__ == '__main__':
         blurry_crop, _ = ExtractPatch(blurry, (120, 120), center_point=center)
 
         blurry_roi = np.where(blurry_crop < 0.1, 0, 1)
-        merged_roi = fmv.ShowColorByROI(t2_crop, blurry_crop, blurry_roi, color_map='jet', is_show=False)
+        merged_roi = ShowColorByRoi(t2_crop, blurry_crop, blurry_roi, color_map='jet', is_show=False)
         prostate_list.append(prostate_crop)
         pcas_list.append(cancer_crop)
         t2_list.append(t2_crop)
@@ -155,7 +156,7 @@ if __name__ == '__main__':
 
     plt.subplot(2, 3, 1)
     plt.axis('off')
-    plt.imshow(t2_list[0], cmap='gray',)
+    plt.imshow(t2_list[0], cmap='gray', )
     plt.contour(prostate_list[0], colors='r', linewidths=0.5)
     plt.contour(pcas_list[0], colors='y', linewidths=0.5)
 
@@ -194,8 +195,41 @@ if __name__ == '__main__':
     # fig.subplots_adjust(right=0.9)
 
     # plt.savefig(save_path + '.tif', format='tif', dpi=1200, bbox_inches='tight', pad_inches=0.05)
-    plt.savefig(save_path + '.eps', format='eps', dpi=600, bbox_inches='tight', pad_inches=0.05)
+    # plt.savefig(save_path + '.eps', format='eps', dpi=600, bbox_inches='tight', pad_inches=0.05)
     # plt.show()
     plt.close()
     plt.clf()
+
+
+if __name__ == '__main__':
+    # Test()
+    # data_folder = r'/home/zhangyihong/Documents/ProstateECE/NPYNoDivide/ProstateSlice/Test'
+    # t2_folder = r'/home/zhangyihong/Documents/ProstateECE/NPYNoDivide/T2Slice/Test'
+    # save_path = r'/home/zhangyihong/Documents/ProstateECE/NPYNoDivide/BoundarySlice/Test'
+    data_folder = r'/home/zhangyihong/Documents/ProstateECE/SUH_Dwi1500/ProstateSlice'
+    t2_folder = r'/home/zhangyihong/Documents/ProstateECE/SUH_Dwi1500/T2Slice'
+    save_path = r'/home/zhangyihong/Documents/ProstateECE/SUH_Dwi1500/BoundarySlice'
+    for case in os.listdir(data_folder):
+        # if case == 'Test':
+        #     continue
+        # else:
+        prostate = np.load(os.path.join(data_folder, case))
+        boundary = ExtractEdge(np.squeeze(prostate), kernel=np.ones((7, 7)))
+        # np.save(os.path.join(save_path, case), boundary[np.newaxis])
+
+        # t2 = np.load(os.path.join(t2_folder, case))
+        # plt.subplot(221)
+        # plt.imshow(np.squeeze(t2), cmap='gray')
+        # plt.contour(np.squeeze(prostate), colors='r')
+        # plt.subplot(222)
+        # plt.imshow(np.squeeze(t2), cmap='gray')
+        # plt.contour(ExtractEdge(np.squeeze(prostate), kernel=np.ones((3, 3))), colors='r')
+        # plt.subplot(223)
+        # plt.imshow(np.squeeze(t2), cmap='gray')
+        # plt.contour(ExtractEdge(np.squeeze(prostate), kernel=np.ones((5, 5))), colors='r')
+        # plt.subplot(224)
+        # plt.imshow(np.squeeze(t2), cmap='gray')
+        # plt.contour(ExtractEdge(np.squeeze(prostate), kernel=np.ones((7, 7))), colors='r')
+        # plt.show()
+
 

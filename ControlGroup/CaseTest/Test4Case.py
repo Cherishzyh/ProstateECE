@@ -6,24 +6,25 @@ from BasicTool.MeDIT.Statistics import BinaryClassification
 from BasicTool.MeDIT.Others import IterateCase
 from BasicTool.MeDIT.SaveAndLoad import LoadImage
 
-# from SYECE.model import ResNeXt
-from SYECE.ModelWithoutDis import ResNeXt
+from SYECE.model import ResNeXt
+# from SYECE.ModelWithoutDis import ResNeXt
 from ECEDataProcess.DataProcess.MaxRoi import GetRoiCenter
-from DistanceMap.RoiDistanceMap import FindRegion
+from DistanceMap.RoiDistanceMap import FindRegion, ExtractEdge
+
 
 
 def LoadData(data_folder):
-    t2_path = os.path.join(data_folder, 't2.nii')
-    dwi_path = os.path.join(data_folder, 'dwi_Reg.nii')
-    adc_path = os.path.join(data_folder, 'adc_Reg.nii')
-    prostate_path = os.path.join(data_folder, 'ProstateROI_TrumpetNet.nii.gz')
-    pca_path = os.path.join(data_folder, 'roi.nii')
-
-    # t2_path = os.path.join(data_folder, 't2_5x5.nii')
+    # t2_path = os.path.join(data_folder, 't2.nii')
     # dwi_path = os.path.join(data_folder, 'dwi_Reg.nii')
     # adc_path = os.path.join(data_folder, 'adc_Reg.nii')
-    # prostate_path = os.path.join(data_folder, 'prostate_roi_5x5.nii.gz')
-    # pca_path = os.path.join(data_folder, 'pca_roi_5x5.nii.gz')
+    # prostate_path = os.path.join(data_folder, 'ProstateROI_TrumpetNet.nii.gz')
+    # pca_path = os.path.join(data_folder, 'roi.nii')
+
+    t2_path = os.path.join(data_folder, 't2_5x5.nii')
+    dwi_path = os.path.join(data_folder, 'dwi_Reg.nii')
+    adc_path = os.path.join(data_folder, 'adc_Reg.nii')
+    prostate_path = os.path.join(data_folder, 'prostate_roi_5x5.nii.gz')
+    pca_path = os.path.join(data_folder, 'pca_roi_5x5.nii.gz')
 
     _, t2, _ = LoadImage(t2_path, dtype=np.float32)
     _, dwi, _ = LoadImage(dwi_path, dtype=np.float32)
@@ -99,8 +100,8 @@ def Run(case_folder):
 
 
 def ModelTest(data_folder, model_folder, case_name, weights_list=None):
-    label_df = pd.read_csv(r'X:\CNNFormatData\ProstateCancerECE\NPYNoDivide\ece.csv', index_col='case')
-    # label_df = pd.read_csv(r'X:\CNNFormatData\ProstateCancerECE\SUH_Dwi1500\label.csv', index_col='case')
+    # label_df = pd.read_csv(r'/home/zhangyihong/Documents/ProstateECE/NPYNoDivide/ece.csv', index_col='case')
+    label_df = pd.read_csv(r'/home/zhangyihong/Documents/ProstateECE/SUH_Dwi1500/label.csv', index_col='case')
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
     cv_folder_list = [one for one in IterateCase(model_folder, only_folder=True, verbose=0)]
@@ -122,46 +123,34 @@ def ModelTest(data_folder, model_folder, case_name, weights_list=None):
         all_case_pred_list = []
         model.eval()
         for case in case_name:
-            case_all_slice_list = Run(os.path.join(data_folder, case[: case.index('_slice')]))
+            case_all_slice_list = Run(os.path.join(data_folder, case[: case.index('_-_slice')]))
             # case_all_slice_list = Run(os.path.join(data_folder, case))
             all_slice_preds_list = []
 
             if cv_index == 0:
-                label_list.append((label_df.loc[case])['label'])
-                # label_list.append((label_df.loc[case[: case.index('_-_slice')]])['label'])
-                case_list.append(case[: case.index('_slice')])
+                # label_list.append((label_df.loc[case])['ece'])
+                label_list.append((label_df.loc[case[: case.index('_-_slice')]])['label'])
+                case_list.append(case[: case.index('_-_slice')])
 
             print('in cv {}, predict {}'.format(cv_index, case))
             # predict for each slice
             for case_one_slice_list in case_all_slice_list:
-                distance_map = FindRegion(case_one_slice_list[3], case_one_slice_list[4])
+                distance_map = FindRegion(case_one_slice_list[3], case_one_slice_list[4]) # attention map
+                distance_map = np.where(distance_map >= 0.1, 1, 0).astype(np.float32) # binary attention map
+
+                # distance_map = ExtractEdge(np.squeeze(case_one_slice_list[3]), kernel=np.ones((7, 7))).astype(np.float32) # prostate boundary
+
+                # distance_map = case_one_slice_list[4]  # pca roi
 
                 t2, dwi, adc = case_one_slice_list[0], case_one_slice_list[1], case_one_slice_list[2]
 
-                # plt.subplot(221)
-                # plt.imshow(t2, cmap='gray')
-                # plt.contour(case_one_slice_list[3], color='r')
-                # plt.contour(case_one_slice_list[4], color='y')
-                # plt.subplot(222)
-                # plt.imshow(adc, cmap='gray')
-                # plt.subplot(223)
-                # plt.imshow(dwi, cmap='gray')
-                # plt.subplot(224)
-                # plt.imshow(distance_map, cmap='jet')
-                # plt.colorbar()
-                # plt.show()
-
-                # inputs_list = MoveTensorsToDevice([torch.tensor(t2[np.newaxis, np.newaxis, ...]),
-                #                                   torch.tensor(dwi[np.newaxis, np.newaxis, ...]),
-                #                                   torch.tensor(adc[np.newaxis, np.newaxis, ...]),
-                #                                   torch.tensor(distance_map[np.newaxis, np.newaxis, ...], dtype=torch.float32)],
-                #                                  device)
                 inputs_list = MoveTensorsToDevice([torch.tensor(t2[np.newaxis, np.newaxis, ...]),
                                                   torch.tensor(dwi[np.newaxis, np.newaxis, ...]),
-                                                  torch.tensor(adc[np.newaxis, np.newaxis, ...])], device)
-                #
+                                                  torch.tensor(adc[np.newaxis, np.newaxis, ...]),
+                                                  torch.tensor(distance_map[np.newaxis, np.newaxis, ...])],
+                                                  device)
+
                 # prediction for a slice
-                # 正常取1
                 preds = model(*inputs_list)[:, 1]
 
                 # prediction_list for all slice
@@ -230,39 +219,41 @@ def ComputeAUC(data_path):
 if __name__ == '__main__':
     from BasicTool.MeDIT.SaveAndLoad import SaveH5
 
-    model_root = r'X:\CNNFormatData\ProstateCancerECE\Model\ResNeXt_CBAM_CV_20200814'
-    # data_root = r'X:\StoreFormatData\ProstateCancerECE\ResampleData'
-    data_root = r'X:\PrcoessedData\ProstateCancerECE_SUH'
+    model_root = r'/home/zhangyihong/Documents/ProstateECE/Model/ResNeXt_CBAM_CV_20201130_BinaryAttenMap'
+    # data_root = r'/home/zhangyihong/Documents/ProstateECE/ResampleData'
+    data_root = r'/home/zhangyihong/Documents/ProstateECE/ProstateCancerECE_SUH'
 
-    train_list = sorted(os.listdir(r'X:\CNNFormatData\ProstateCancerECE\NPYNoDivide\Test\AdcSlice'))
-    train_name = [name[:name.index('.npy')] for name in train_list]
-
-    # prediction
+    ##################################TRAIN#######################################################
+    # train_list = sorted(os.listdir(r'/home/zhangyihong/Documents/ProstateECE/NPYNoDivide/AdcSlice'))
+    # train_list.remove('Test')
+    # train_name = [name[:name.index('.npy')] for name in train_list]
+    #
     # case_list, mean_pred, label_list = ModelTest(data_root, model_root, train_name, weights_list=None)
-    #
-    #
     # for index, case in enumerate(case_list):
-    #     save_path = os.path.join(r'X:\CNNFormatData\ProstateCancerECE\Result\CaseH5\ResNeXt\Test', case+'.h5')
+    #     save_path = os.path.join(r'/home/zhangyihong/Documents/ProstateECE/Result/CaseH5/BinaryAtten/Train', case+'.h5')
     #     SaveH5(save_path, data=[mean_pred[index], label_list[index]],
     #            tag=['prediction', 'label'], data_type=[np.float32, np.uint8])
 
-    # test_list = sorted(os.listdir(r'X:\CNNFormatData\ProstateCancerECE\NPYNoDivide\Test\AdcSlice'))
+    ##################################TEST#######################################################
+    # test_list = sorted(os.listdir(r'/home/zhangyihong/Documents/ProstateECE/NPYNoDivide/AdcSlice/Test'))
     # test_name = [name[:name.index('.npy')] for name in test_list]
     # case_list, mean_pred, label_list = ModelTest(data_root, model_root, test_name, weights_list=None)
-
-    # for index, case in enumerate(case_list):
-    #     save_path = os.path.join(r'X:\CNNFormatData\ProstateCancerECE\Result\CaseH5\Test', case+'.h5')
-    #     SaveH5(save_path, data=[mean_pred[index], label_list[index]],
-    #            tag=['prediction', 'label'], data_type=[np.float32, np.uint8])
-
-    # SUH_list = sorted(os.listdir(r'X:\CNNFormatData\ProstateCancerECE\SUH_Dwi1500\AdcSlice'))
-    # SUH_name = [name[:name.index('.npy')] for name in SUH_list]
-    # case_list, mean_pred, label_list = ModelTest(data_root, model_root, SUH_name, weights_list=None)
     #
     # for index, case in enumerate(case_list):
-    #     save_path = os.path.join(r'X:\CNNFormatData\ProstateCancerECE\Result\CaseH5\SUH', case+'.h5')
+    #     save_path = os.path.join(r'/home/zhangyihong/Documents/ProstateECE/Result/CaseH5/BinaryAtten/Test', case+'.h5')
     #     SaveH5(save_path, data=[mean_pred[index], label_list[index]],
     #            tag=['prediction', 'label'], data_type=[np.float32, np.uint8])
+
+
+    ##################################SUH#######################################################
+    SUH_list = sorted(os.listdir(r'/home/zhangyihong/Documents/ProstateECE/SUH_Dwi1500/AdcSlice'))
+    SUH_name = [name[:name.index('.npy')] for name in SUH_list]
+    case_list, mean_pred, label_list = ModelTest(data_root, model_root, SUH_name, weights_list=None)
+
+    for index, case in enumerate(case_list):
+        save_path = os.path.join(r'/home/zhangyihong/Documents/ProstateECE/Result/CaseH5/BinaryAtten/SUH', case+'.h5')
+        SaveH5(save_path, data=[mean_pred[index], label_list[index]],
+               tag=['prediction', 'label'], data_type=[np.float32, np.uint8])
 
 
     # ComputeAUC(r'X:\CNNFormatData\ProstateCancerECE\Result\CaseH5\SUH')

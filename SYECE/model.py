@@ -232,8 +232,7 @@ class ResNeXt(nn.Module):
 
     def forward(self, t2, adc, dwi, dis_map):
         inputs = torch.cat([t2, adc, dwi], dim=1)
-
-        x = self.conv1(inputs)  # shape = (184, 184)
+        x = self.conv1(inputs)
         x = self.maxpool1(x)  # shape = (92, 92)
 
         x = self.layer1(x, dis_map)  # shape = (92, 92)
@@ -242,9 +241,11 @@ class ResNeXt(nn.Module):
         x = self.layer4(x, dis_map)  # shape = (12, 12)
         x = self.avgpool(x)
         x = torch.flatten(x, 1)
-        x = self.fc1(x)
-        x = self.fc2(x)
+        x_fc1 = self.fc1(x)
+        x = self.fc2(x_fc1)
         return torch.softmax(x, dim=1)
+        # return torch.softmax(x, dim=1), x_fc1
+        # return x
 
 
 if __name__ == '__main__':
