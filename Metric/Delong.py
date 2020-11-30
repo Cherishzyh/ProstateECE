@@ -306,7 +306,7 @@ def delong_roc_test(ground_truth, predictions_one, predictions_two):
    return calc_pvalue(aucs, delongcov)
 
 
-def delong_roc_ci(y_true,y_pred):
+def delong_roc_ci(y_true, y_pred):
    aucs, auc_cov = delong_roc_variance(y_true, y_pred)
    auc_std = np.sqrt(auc_cov)
    lower_upper_q = np.abs(np.array([0, 1]) - (1 - alpha) / 2)
@@ -318,43 +318,64 @@ def delong_roc_ci(y_true,y_pred):
    return aucs, ci
 
 
-if __name__ == '__main__':
-#examples 具体用法
+# def delong_roc_ci(y_true, y_pred):
+#     aucs, auc_cov = delong_roc_variance(y_true, y_pred)
+#     auc_std = np.sqrt(auc_cov)
+#     lower_upper_q = np.abs(np.array([0, 1]) - (1 - alpha) / 2)
+#     ci = stats.norm.ppf(
+#         lower_upper_q,
+#         loc=aucs,
+#         scale=auc_std)
+#     ci[ci > 1] = 1
+#     return aucs, ci
 
-    y_true = np.load(r'/home/zhangyihong/Documents/ProstateECE/Result/NPY/JSPH_TRAIN_label.npy')
-    y_pred_1 = np.load(r'/home/zhangyihong/Documents/ProstateECE/Result/NPY/JSPH_TRAIN_nodis_result.npy')
-    y_pred_2 = np.load(r'/home/zhangyihong/Documents/ProstateECE/Result/NPY/JSPH_TRAIN_bj_result.npy')
+if __name__ == '__main__':
+    #examples 具体用法
+
+    # y_true = np.load(r'/home/zhangyihong/Documents/ProstateECE/Result/NPY/JSPH_TRAIN_label.npy')
+    # y_pred_1 = np.load(r'/home/zhangyihong/Documents/ProstateECE/Result/NPY/JSPH_TRAIN_nodis_result.npy')
+    # y_pred_2 = np.load(r'/home/zhangyihong/Documents/ProstateECE/Result/NPY/JSPH_TRAIN_bj_result.npy')
 
     alpha = .95
 
-    def delong_roc_ci(y_true,y_pred):
-       aucs, auc_cov = delong_roc_variance(y_true, y_pred)
-       auc_std = np.sqrt(auc_cov)
-       lower_upper_q = np.abs(np.array([0, 1]) - (1 - alpha) / 2)
-       ci = stats.norm.ppf(
-           lower_upper_q,
-           loc=aucs,
-           scale=auc_std)
-       ci[ci > 1] = 1
-       return aucs,ci
+    pred_df = pd.read_csv(r'C:\Users\ZhangYihong\Desktop\JMRI\feature\all_pred_test.csv')
 
-    #pvalue
-    pvalue = delong_roc_test(y_true, y_pred_1, y_pred_2)
-    #  aucs, auc_cov = delong_roc_variance(y_true, y_pred)
-    auc_1, auc_cov_1 = delong_roc_variance(y_true, y_pred_1)
-    auc_2, auc_cov_2 = delong_roc_variance(y_true, y_pred_2)
+    label = []
+    clinical_pred = []
+    PAGNet_pred = []
+    PAGNet_C_pred = []
+    ECE_C_pred = []
+    ECE_PAGNet_pred = []
+    ECE_C_PAGNet_pred = []
+    ECE_pred = []
+    for index in pred_df.index:
+        label.append(pred_df.loc[index]['Label'])
+        clinical_pred.append(pred_df.loc[index]['Clin'])
+        PAGNet_pred.append(pred_df.loc[index]['PAGNet'])
+        ECE_pred.append(pred_df.loc[index]['MR_ECE'])
+        ECE_PAGNet_pred.append(pred_df.loc[index]['PAGNet-MR_ECE'])
+        PAGNet_C_pred.append(pred_df.loc[index]['PAGNet-Clin'])
+        ECE_C_pred.append(pred_df.loc[index]['MR_ECE-Clin'])
+        ECE_C_PAGNet_pred.append(pred_df.loc[index]['PAGNet-MR_ECE-Clin'])
 
-    auc_std = np.sqrt(auc_cov_1)
-    lower_upper_q = np.abs(np.array([0, 1]) - (1 - alpha) / 2)
-    #
-    ci = stats.norm.ppf(
-       lower_upper_q,
-       loc=auc_1,
-       scale=auc_std)
-    ci[ci > 1] = 1
+    pred_list = [clinical_pred, ECE_pred, PAGNet_pred, ECE_C_pred, PAGNet_C_pred, ECE_PAGNet_pred, ECE_C_PAGNet_pred]
+    pred_list_name = ['clinical_pred', 'ECE_pred', 'PAGNet_pred', 'ECE_C_pred', 'PAGNet_C_pred', 'ECE_PAGNet_pred', 'ECE_C_PAGNet_pred']
+    # pred_list = [clinical_pred, PAGNet_pred, ECE_C_pred, PAGNet_C_pred, ECE_PAGNet_pred, ECE_C_PAGNet_pred]
+    # pred_list_name = ['clinical_pred', 'PAGNet_pred', 'ECE_C_pred', 'PAGNet_C_pred', 'ECE_PAGNet_pred',
+    #                   'ECE_C_PAGNet_pred']
+    for i, list in enumerate(pred_list):
+        for j in range(len(pred_list)):
+            if i != j:
+                print('{} & {}:'.format(pred_list_name[i], pred_list_name[j]), end=',')
+                #pvalue
+                pvalue = delong_roc_test(np.array(label), np.array(list), np.array(pred_list[j]))
+                # aucs, auc_cov = delong_roc_variance(y_true, y_pred)
+                # auc_1, auc_cov_1 = delong_roc_variance(np.array(pag_c_label), np.array(pag_c_pred))
+                # auc_2, auc_cov_2 = delong_roc_variance(np.array(ece_c_label), np.array(ece_c_pred))
 
-    # print('95% AUC CI:', ci)
-    print('AUC1:', auc_1, 'AUC2:', auc_2)
+                # print('95% AUC CI:', ci)
+                # print('AUC1:', auc_1, 'AUC2:', auc_2)
 
-    print('p_value:', pvalue)
+                print('p_value:', pvalue)
+
 

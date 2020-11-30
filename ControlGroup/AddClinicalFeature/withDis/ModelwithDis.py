@@ -216,7 +216,7 @@ class ResNeXt(nn.Module):
         self.layer3 = Layer3(inplanes * 4, inplanes * 6, cardinality=24)
         self.layer4 = Layer4(inplanes * 6, inplanes * 8, cardinality=32)
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
-        self.fc1 = nn.Sequential(nn.Linear(inplanes * 8+2, inplanes),
+        self.fc1 = nn.Sequential(nn.Linear(inplanes * 8 + 5, inplanes),
                                  nn.Dropout(0.5),
                                  nn.ReLU(inplace=True))
         self.fc2 = nn.Linear(inplanes, num_classes)

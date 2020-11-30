@@ -204,10 +204,10 @@ class ResNeXt(nn.Module):
         self.layer3 = Layer3(inplanes * 4, inplanes * 6, cardinality=24)
         self.layer4 = Layer4(inplanes * 6, inplanes * 8, cardinality=32)
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
-        self.fc1 = nn.Sequential(nn.Linear(inplanes * 8+2, inplanes),
+        self.fc1 = nn.Sequential(nn.Linear(inplanes * 8, inplanes),
                                  nn.Dropout(0.5),
                                  nn.ReLU(inplace=True))
-        self.fc2 = nn.Linear(inplanes, num_classes)
+        self.fc2 = nn.Linear(inplanes + 5, num_classes)
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -229,8 +229,8 @@ class ResNeXt(nn.Module):
         x = self.layer4(x)  # shape = (12, 12)
         x = self.avgpool(x)
         x = torch.flatten(x, 1)
-        x = torch.cat((x, clinical_feature), dim=1)
         x = self.fc1(x)
+        x = torch.cat((x, clinical_feature), dim=1)
         x = self.fc2(x)
         return torch.softmax(x, dim=1)
 

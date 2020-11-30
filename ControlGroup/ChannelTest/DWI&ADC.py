@@ -11,10 +11,7 @@ from SSHProject.CnnTools.T4T.Utility.Data import *
 from SSHProject.CnnTools.T4T.Utility.CallBacks import EarlyStopping
 from SSHProject.CnnTools.T4T.Utility.Initial import HeWeightInit
 
-# from SYECE.path_config import model_root, data_root
-from SYECE.ModelWithoutDis import ResNeXt
-# from SYECE.model import ResNeXt
-from AddClinicalFeature.withoutDis.ModelwithoutDis import ResNeXt
+from SYECE.model import ResNeXt
 
 model_root = r'/home/zhangyihong/Documents/ProstateECE/Model'
 data_root = r'/home/zhangyihong/Documents/ProstateECE/NPYNoDivide'
@@ -31,10 +28,10 @@ def ClearGraphPath(graph_path):
 def _GetLoader(sub_list, aug_param_config, input_shape, batch_size, shuffle):
     data = DataManager(sub_list=sub_list, augment_param=aug_param_config)
 
-    data.AddOne(Image2D(data_root + '/T2Slice', shape=input_shape))
+    # data.AddOne(Image2D(data_root + '/T2Slice', shape=input_shape))
     data.AddOne(Image2D(data_root + '/AdcSlice', shape=input_shape))
     data.AddOne(Image2D(data_root + '/DwiSlice', shape=input_shape))
-    data.AddOne(Feature(data_root + '/Age&Psa_norm.csv'), is_input=True)
+    data.AddOne(Image2D(data_root + '/DistanceMap', shape=input_shape, is_roi=True))
     data.AddOne(Label(data_root + '/label.csv', label_tag='Positive'), is_input=False)
     data.Balance(Label(data_root + '/label.csv', label_tag='Positive'))
     loader = DataLoader(data, batch_size=batch_size, shuffle=shuffle)
@@ -42,15 +39,16 @@ def _GetLoader(sub_list, aug_param_config, input_shape, batch_size, shuffle):
     return loader, batches
 
 
-def EnsembleTrain():
+def EnsembleTrain(save_folder):
     torch.autograd.set_detect_anomaly(True)
 
     device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
     input_shape = (192, 192)
     total_epoch = 10000
     batch_size = 24
-    model_folder = MakeFolder(model_root + '/ResNeXt_CBAM_CV_20201028_age&psa')
-    CopyFile('ModelwithoutDis.py', model_folder / 'ModelwithoutDis.py')
+    # model_folder = MakeFolder(model_root + '/ResNeXt_CBAM_CV_20200820')
+    model_folder = MakeFolder(model_root + save_folder)
+    CopyFile('/home/zhangyihong/SSHProject/ProstateECE/SYECE/model.py', model_folder / 'model.py')
 
     param_config = {
         RotateTransform.name: {'theta': ['uniform', -10, 10]},
@@ -74,12 +72,10 @@ def EnsembleTrain():
         train_loader, train_batches = _GetLoader(sub_train, param_config, input_shape, batch_size, True)
         val_loader, val_batches = _GetLoader(sub_val, param_config, input_shape, batch_size, True)
 
-        model = ResNeXt(3, 2).to(device)
+        model = ResNeXt(2, 2).to(device)
         model.apply(HeWeightInit)
 
         optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-        # criterion = torch.nn.BCELoss()
-        # loss1 = torch.nn.BCELoss()
         loss1 = torch.nn.NLLLoss()
 
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', patience=10, factor=0.5,
@@ -161,4 +157,4 @@ def EnsembleTrain():
 
 
 if __name__ == '__main__':
-    EnsembleTrain()
+    EnsembleTrain('/ResNeXt_CBAM_CV_20201030_DWI&ADC')
