@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from Model.Block import *
+from MyModel.Block import *
 
 
 class AttenUNetMultiTask2D(nn.Module):

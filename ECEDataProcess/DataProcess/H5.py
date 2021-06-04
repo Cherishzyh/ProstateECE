@@ -4,14 +4,16 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from scipy import ndimage
+import shutil
 
-from MeDIT.SaveAndLoad import LoadNiiData, LoadImage
-from MeDIT.Normalize import Normalize01
-from MeDIT.Visualization import Imshow3DArray
+from BasicTool.MeDIT.SaveAndLoad import LoadImage
+from BasicTool.MeDIT.Normalize import Normalize01, NormalizeZ
+from BasicTool.MeDIT.Visualization import Imshow3DArray
+from BasicTool.MeDIT.ArrayProcess import ExtractPatch
 
-from FilePath import *
+from ECEDataProcess.DataProcess.MaxRoi import SelectMaxRoiSlice, GetRoiCenter, KeepLargest
 
-info = pd.read_csv(csv_path, usecols=['case', 'pECE'], index_col=['case'])
+# info = pd.read_csv(csv_path, usecols=['case', 'pECE'], index_col=['case'])
 
 
 def CropT2Data(t2_data, crop_shape, slice_index, center):
@@ -38,7 +40,6 @@ def CropRoiData(roi_data, crop_shape, slice_index, center):
 
 # MakeH5()
 def WriteH5(data_folder, save_path):
-    from ECEDataProcess.DataProcess.MaxRoi import SelectMaxRoiSlice, GetRoiCenter, KeepLargest
     case_list = os.listdir(data_folder)
     crop_shape = (1, 280, 280)
 
@@ -83,8 +84,8 @@ def WriteH5(data_folder, save_path):
 
         with h5py.File(datapath, 'w') as f:
             f['input_0'] = t2_slice_3d
-            # f['input_1'] = dwi_slice_3d
-            # f['input_2'] = adc_slice_3d
+            f['input_1'] = dwi_slice_3d
+            f['input_2'] = adc_slice_3d
             f['output_0'] = roi_slice_3d
             f['output_1'] = ece
 
@@ -230,10 +231,163 @@ def Show():
     plt.show()
 
 
-if __name__ == '__main__':
-    data_folder = resample_folder
-    save_path = input_0_output_1_path
-    WriteH5(data_folder, save_path)
-    # TestWhiteH5()
+def CorrectName():
+    data_root = r'X:\CNNFormatData\ProstateCancerECE\NPYNoDivide\Test'
+    folder_list = ['AdcSlice', 'DwiSlice', 'T2Slice', 'ProstateSlice', 'PCaSlice', 'DistanceMap']
+    folder_list_new = ['AdcSliceNew', 'DwiSliceNew', 'T2SliceNew', 'ProstateSliceNew', 'PCaSliceNew', 'DistanceMapNew']
 
+    for index, folder in enumerate(folder_list):
+        data_folder = os.path.join(data_root, folder)
+        new_data_folder = os.path.join(data_root, folder_list_new[index])
+        if not os.path.exists(new_data_folder):
+            os.mkdir(new_data_folder)
+        print('###########copy {}#############'.format(folder))
+        for j, case in enumerate(os.listdir(data_folder)):
+            name, slice = case.split('_')
+            new_name = name + '_-_' + slice
+            print(new_name)
+            shutil.copy(os.path.join(data_folder, case), os.path.join(new_data_folder, new_name))
+
+
+def SaveNPY(data_folder, save_path):
+    case_list = os.listdir(data_folder)
+    # crop_shape = (1, 280, 280)
+
+    for case in case_list:
+        case = '601548'
+        # path
+        case_path = os.path.join(data_folder, case)
+        ct_path = os.path.join(case_path, 'data.nii.gz')
+        pca_path = os.path.join(case_path, 'roi.nii.gz')
+        pro_path = os.path.join(case_path, 'only_kidney_roi_lq.nii.gz')
+
+        try:
+            _, ct, _ = LoadImage(ct_path, dtype=np.float32)
+            _, pro, _ = LoadImage(pro_path, dtype=np.uint8)
+            _, pca, _ = LoadImage(pca_path, dtype=np.uint8)
+
+            slice = SelectMaxRoiSlice(pca)
+            # slice = 8
+
+            ct_slice_3d = ct[np.newaxis, ..., slice]
+            pro_slice_3d = pro[np.newaxis, ..., slice]
+            pca_slice_3d = pca[np.newaxis, ..., slice]
+
+            pro_slice_3d = np.clip(pro_slice_3d, a_min=0, a_max=1)
+
+            plt.imshow(np.squeeze(ct_slice_3d), cmap='gray')
+            plt.contour(np.squeeze(pro_slice_3d), colors='r')
+            plt.contour(np.squeeze(pca_slice_3d), colors='y')
+            plt.show()
+            plt.close()
+
+            dataname = case + '_-_slice' + str(slice) + '.npy'
+            ct_save_path = os.path.join(save_path, 'ct_slice/{}'.format(dataname))
+            cancer_save_path = os.path.join(save_path, 'cancer_slice/{}'.format(dataname))
+            kindey_save_path = os.path.join(save_path, 'kindey_slice/{}'.format(dataname))
+
+            np.save(ct_save_path, ct_slice_3d)
+            np.save(cancer_save_path, pca_slice_3d)
+            np.save(kindey_save_path, pro_slice_3d)
+        except Exception as e:
+            print(e)
+        break
+
+
+def CheckROINum(data_folder):
+    roi_folder = os.path.join(data_folder, 'cancer_slice')
+    ct_folder = os.path.join(data_folder, 'ct_slice')
+    gland_folder = os.path.join(data_folder, 'kindey_slice')
+    for case in os.listdir(roi_folder):
+        roi = np.squeeze(np.load(os.path.join(roi_folder, case)))
+        # gland = np.squeeze(np.load(os.path.join(gland_folder, case)))
+        # ct = np.squeeze(np.load(os.path.join(ct_folder, case)))
+        _, num, new_roi = KeepLargest(roi)
+        if num > 1:
+            print(case)
+            # np.save(os.path.join(roi_folder, case), new_roi)
+
+
+def CropKeepLargest():
+    data_folder = r'/home/zhangyihong/Documents/Kindey901/Kindey_npy'
+    roi_folder = os.path.join(data_folder, 'cancer_slice')
+    gland_folder = os.path.join(data_folder, 'kindey_slice')
+    ct_folder = os.path.join(data_folder, 'ct_slice')
+    shape = (300, 300)
+    for case in os.listdir(roi_folder):
+        case = '601548_-_slice8.npy'
+        ct = np.squeeze(np.load(os.path.join(ct_folder, case)))
+        roi = np.squeeze(np.load(os.path.join(roi_folder, case)))
+        gland = np.squeeze(np.load(os.path.join(gland_folder, case)))
+
+        center, _ = GetRoiCenter(roi)
+
+        roi_new, _ = ExtractPatch(roi, patch_size=shape, center_point=center)
+        gland_new, _ = ExtractPatch(gland, patch_size=shape, center_point=center)
+        ct_new, _ = ExtractPatch(ct, patch_size=shape, center_point=center)
+
+        _, _, gland_new = KeepLargest(gland_new)
+
+        ct_slice_3d = ct_new[np.newaxis, ...]
+        gland_slice_3d = gland_new[np.newaxis, ...]
+        roi_slice_3d = roi_new[np.newaxis, ...]
+
+        plt.subplot(121)
+        plt.imshow(ct, cmap='gray')
+        plt.contour(gland, colors='r')
+        plt.contour(roi, colors='y')
+        plt.scatter(x=center[1], y=center[0])
+        plt.subplot(122)
+        plt.imshow(ct_new, cmap='gray')
+        plt.contour(gland_new, colors='r')
+        plt.contour(roi_new, colors='y')
+        plt.scatter(x=150, y=150)
+        plt.show()
+
+        np.save(os.path.join(ct_folder, case), ct_slice_3d)
+        np.save(os.path.join(roi_folder, case), roi_slice_3d)
+        np.save(os.path.join(gland_folder, case), gland_slice_3d)
+        break
+
+
+def Normailzation():
+    data_folder = r'/home/zhangyihong/Documents/Kindey901/Kindey_npy'
+    roi_folder = os.path.join(data_folder, 'cancer_slice')
+    gland_folder = os.path.join(data_folder, 'kindey_slice')
+    ct_folder = os.path.join(data_folder, 'ct_slice')
+
+    for case in os.listdir(roi_folder):
+        ct = np.load(os.path.join(ct_folder, case))
+        roi = np.load(os.path.join(roi_folder, case))
+        gland = np.load(os.path.join(gland_folder, case))
+
+        ct = NormalizeZ(ct)
+        if (np.unique(roi) == np.array([0, 1])).all() and (np.unique(gland) == np.array([0, 1])).all():
+            continue
+        else:
+            print(case)
+        np.save(os.path.join(ct_folder, case), ct)
+
+
+def Add():
+    data_folder = r'/home/zhangyihong/Documents/Kindey901/Kindey_npy'
+    atten_folder = os.path.join(data_folder, 'atten_slice')
+
+    for case in os.listdir(atten_folder):
+        atten = np.load(os.path.join(atten_folder, case))
+
+        atten = atten[np.newaxis, ...]
+
+        np.save(os.path.join(atten_folder, case), atten)
+
+
+if __name__ == '__main__':
+    data_folder = r'/home/zhangyihong/Documents/Kindey901/Kindey901_new'
+    save_path = r'/home/zhangyihong/Documents/Kindey901/Kindey_npy'
+
+    # SaveNPY(data_folder, save_path)
+    # CheckROINum(save_path)
+    # CropKeepLargest()
+    # Normailzation()
+    Add()
 

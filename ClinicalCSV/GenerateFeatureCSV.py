@@ -30,11 +30,11 @@ def GenerateCSV(pred_csv_path, clinical_csv_path, feature_list, coding='one_hot'
 
 
     case, label = GetCSVList(pred_df, 'Label', )
-    _, pred = GetCSVList(pred_df, 'PAGNet')
+    _, pred = GetCSVList(pred_df, 'Pred')
     # pred = np.clip(np.array(pred), 0.01, 0.99)
     # pred_log = Normalize01(np.log(pred) - np.log(1-pred)).tolist()
 
-    feature_dict = {'case': case, 'label': label, 'PAGNet': pred}
+    feature_dict = {'case': case, 'label': label, 'Pred': pred}
 
     for feature in feature_list:
         _, feature_index = GetCSVListByCase(clinical_df, feature, case)
@@ -93,26 +93,25 @@ def GenerateCSV(pred_csv_path, clinical_csv_path, feature_list, coding='one_hot'
     # feature_matrix = pd.DataFrame()
     # feature_matrix.to_csv(save_path)
 
+
 if __name__ == '__main__':
-    test_path = r'X:\CNNFormatData\ProstateCancerECE\Result\CaseH5\PAGNet\test.csv'
+    # test_path = r'X:\CNNFormatData\ProstateCancerECE\Result\CaseH5\PAGNet\test.csv'
     # train_path = r'X:\CNNFormatData\ProstateCancerECE\Result\CaseH5\PAGNet\train.csv'
     # external_path = r'X:\CNNFormatData\ProstateCancerECE\Result\CaseH5\PAGNet\suh.csv'
+    test_path = r'X:\CNNFormatData\ProstateCancerECE\Result\PAGNet_test.csv'
+    train_path = r'X:\CNNFormatData\ProstateCancerECE\Result\PAGNet_train.csv'
+    external_path = r'X:\CNNFormatData\ProstateCancerECE\Result\PAGNet_suh.csv'
 
     # test_clinical_path = r'X:\CNNFormatData\ProstateCancerECE\NPYNoDivide\test_clinical.csv'
     # train_clinical_path = r'X:\CNNFormatData\ProstateCancerECE\NPYNoDivide\train_clinical.csv'
 
     clinical_path = r'X:\CNNFormatData\ProstateCancerECE\NPYNoDivide\ECE-JSPH-clinical_report.csv'
     # clinical_path = r'X:\CNNFormatData\ProstateCancerECE\SUH_Dwi1500\suh_clinical_supplement.csv'
-    # train_clinical_path = r'X:\CNNFormatData\ProstateCancerECE\NPYNoDivide\train_clinical.csv'
 
     feature_list = ['ECE stage bj', 'ECE stage hy']
+    # feature_list = ['ECE score bj', 'ECE score hy']
 
-    # feature_dict = GenerateCSV(test_path, test_clinical_path, feature_list)
-    # feature_matrix = pd.DataFrame(feature_dict)
-    # feature_matrix.to_csv(r'C:\Users\ZhangYihong\Desktop\JMRI\feature\CaseBased_NoSigmoid\test.csv')
-    # print()
-
-    feature_dict = GenerateCSV(test_path, clinical_path, feature_list, coding='ordinal')
+    feature_dict = GenerateCSV(train_path, clinical_path, feature_list)
     feature_matrix = pd.DataFrame(feature_dict)
-    feature_matrix.to_csv(r'C:\Users\ZhangYihong\Desktop\JMRI\feature\Grade\PAGNet+grade_test_ordinal.csv')
+    feature_matrix.to_csv(r'C:\Users\ZhangYihong\Desktop\JMRI\feature\Grade2d\PAGNet+grade_train.csv')
     print()

@@ -5,30 +5,8 @@ import torch.nn.functional as F
 
 import torch
 
-
-'''
-v1: all layers add distance map
-v2: only layer1 and layer2 add distance map
-
-'''
-
-
-def conv1x1(in_planes, out_planes, stride=1):
-    return nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride, bias=False)
-
-
-class ConvBn2D(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, groups=1):
-        super(ConvBn2D, self).__init__()
-        self.conv = nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, stride=stride,
-                              padding=kernel_size // 2, bias=False, groups=groups)
-        self.bn = nn.BatchNorm2d(out_channels)
-
-    def forward(self, x):
-        x = self.conv(x)
-        x = self.bn(x)
-        x = F.relu(x)
-        return x
+from MyModel.Block import conv1x1, conv3x3
+from T4T.Block.ConvBlock import ConvBn2D
 
 
 class ChannelAttention(nn.Module):
@@ -214,7 +192,7 @@ class Layer4(nn.Module):
 
 
 class ResNeXt(nn.Module):
-    def __init__(self, in_channels, num_classes, inplanes=32):
+    def __init__(self, in_channels, num_classes, num_feature, inplanes=32):
         """ Constructor
         Args:
             baseWidth: baseWidth for ResNeXt.
@@ -236,7 +214,7 @@ class ResNeXt(nn.Module):
                                  nn.Dropout(0.5),
                                  nn.ReLU(inplace=True))
         self.fc2 = nn.Linear(inplanes, num_classes)
-
+        self.fc3 = nn.Linear(num_classes+num_feature, num_classes)
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -246,7 +224,7 @@ class ResNeXt(nn.Module):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
 
-    def forward(self, t2, adc, dwi, dis_map):
+    def forward(self, t2, adc, dwi, dis_map, feature):
         inputs = torch.cat([t2, adc, dwi], dim=1)
         x = self.conv1(inputs)
         x = self.maxpool1(x)  # shape = (92, 92)
@@ -257,66 +235,20 @@ class ResNeXt(nn.Module):
         x = self.layer4(x, dis_map)  # shape = (12, 12)
         x = self.avgpool(x)
         x = torch.flatten(x, 1)
-        x_fc1 = self.fc1(x)
-        x = self.fc2(x_fc1)
-        return torch.softmax(x, dim=1)
-        # return torch.softmax(x, dim=1), x_fc1
-        # return x
+        x = self.fc1(x)
+        x1 = self.fc2(x)
+        x = torch.cat((x1, feature), dim=1)
+        x2 = self.fc3(x)
+        return torch.softmax(x1, dim=1), torch.softmax(x2, dim=1)
 
-
-class ResNeXtOneInput(nn.Module):
-    def __init__(self, in_channels, num_classes, inplanes=32):
-        """ Constructor
-        Args:
-            baseWidth: baseWidth for ResNeXt.
-            cardinality: number of convolution groups.
-            layers: config of layers, e.g., [3, 4, 6, 3]
-            num_classes: number of classes
-        """
-        super(ResNeXtOneInput, self).__init__()
-
-        self.conv1 = ConvBn2D(in_channels, inplanes)
-        self.maxpool1 = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
-
-        self.layer1 = Layer1(inplanes, inplanes * 2, cardinality=8)
-        self.layer2 = Layer2(inplanes * 2, inplanes * 4, cardinality=16)
-        self.layer3 = Layer3(inplanes * 4, inplanes * 6, cardinality=24)
-        self.layer4 = Layer4(inplanes * 6, inplanes * 8, cardinality=32)
-        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
-        self.fc1 = nn.Sequential(nn.Linear(inplanes * 8, inplanes),
-                                 nn.Dropout(0.5),
-                                 nn.ReLU(inplace=True))
-        self.fc2 = nn.Linear(inplanes, num_classes)
-
-
-        for m in self.modules():
-            if isinstance(m, nn.Conv2d):
-                n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
-                m.weight.data.normal_(0, math.sqrt(2. / n))
-            elif isinstance(m, nn.BatchNorm2d):
-                m.weight.data.fill_(1)
-                m.bias.data.zero_()
-
-    def forward(self, inputs, dis_map):
-        x = self.conv1(inputs)
-        x = self.maxpool1(x)  # shape = (92, 92)
-
-        x = self.layer1(x, dis_map)  # shape = (92, 92)
-        x = self.layer2(x, dis_map)  # shape = (46, 46)
-        x = self.layer3(x, dis_map)  # shape = (23, 23)
-        x = self.layer4(x, dis_map)  # shape = (12, 12)
-        x = self.avgpool(x)
-        x = torch.flatten(x, 1)
-        x_fc1 = self.fc1(x)
-        x = self.fc2(x_fc1)
-        return torch.softmax(x, dim=1)
 
 
 if __name__ == '__main__':
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-    model = ResNeXt(3, num_classes=2).to(device)
+    model = ResNeXt(3, num_classes=2, num_feature=5).to(device)
     print(model)
     inputs = torch.randn(1, 1, 184, 184).to(device)
     dis_map = torch.randn(1, 1, 184, 184).to(device)
-    prediction = model(inputs, inputs, inputs, dis_map)
-    print(prediction.shape)
+    feature = torch.randn(1, 5).to(device)
+    prediction = model(inputs, inputs, inputs, dis_map, feature)
+    print(prediction[0].shape, prediction[1].shape)

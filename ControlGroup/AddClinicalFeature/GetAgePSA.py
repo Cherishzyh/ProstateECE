@@ -85,16 +85,16 @@ def DrawDistributionHist(feature_list, feature_name, label_list):
 
 if __name__ == '__main__':
 
-    # JSPH_clinical_report_path = r'/home/zhangyihong/Documents/ProstateECE/NPYNoDivide/test_clinical.csv'
-    # case_csv_path = r'/home/zhangyihong/Documents/ProstateECE/NPYNoDivide/ece.csv'
-    #
-    # case_list = os.listdir(r'/home/zhangyihong/Documents/ProstateECE/NPYNoDivide/AdcSlice/Test')
-    # if 'Test' in case_list:
-    #     case_list.remove('Test')
-    #     case_list.remove('DSR^dai shou rong_slice16.npy')
-    #
-    # clinical_df = pd.read_csv(JSPH_clinical_report_path, encoding='gbk',
-    #                           usecols=['case', 'age', 'psa', 'bGs', 'core', 'b-NI'], index_col='case')
+    JSPH_clinical_report_path = r'/home/zhangyihong/Documents/ProstateECE/NPYNoDivide/train_clinical.csv'
+    case_csv_path = r'/home/zhangyihong/Documents/ProstateECE/NPYNoDivide/ece.csv'
+
+    case_list = os.listdir(r'/home/zhangyihong/Documents/ProstateECE/NPYNoDivide/AdcSlice/Test')
+    if 'Test' in case_list:
+        case_list.remove('Test')
+        case_list.remove('DSR^dai shou rong_slice16.npy')
+
+    clinical_df = pd.read_csv(JSPH_clinical_report_path, encoding='gbk',
+                              usecols=['case', 'age', 'psa', 'bGs', 'core', 'b-NI'], index_col='case')
 
     # SUH_clinical_report_path = r'/home/zhangyihong/Documents/ProstateECE/SUH_Dwi1500/suh_clinical_supplement.csv'
     # case_csv_path = r'/home/zhangyihong/Documents/ProstateECE/SUH_Dwi1500/label.csv'
@@ -105,18 +105,18 @@ if __name__ == '__main__':
     #                           usecols=['case', 'age', 'PSA', '穿刺GS grade', 'core', 'b-NI'], index_col='case')
     #
     # case_name_df = pd.read_csv(case_csv_path, usecols=['case', 'ece'], index_col=['case'])
-    # WriteCSV(['age', 'psa', 'bGs', 'core', 'b-NI'], clinical_df, case_list,
-    #          save_path=r'/home/zhangyihong/Documents/ProstateECE/NPYNoDivide/FiveClinicalbGS.csv')
+    WriteCSV(['age', 'psa', 'bGs', 'core', 'b-NI'], clinical_df, case_list,
+             save_path=r'/home/zhangyihong/Documents/ProstateECE/NPYNoDivide/FiveClinicalbGS.csv')
 
 
 
     #
-    label_path = r'/home/zhangyihong/Documents/ProstateECE/NPYNoDivide/ece.csv'
-    csv_path = r'/home/zhangyihong/Documents/ProstateECE/NPYNoDivide/FiveClinical.csv'
+    # label_path = r'/home/zhangyihong/Documents/ProstateECE/NPYNoDivide/ece.csv'
+    # csv_path = r'/home/zhangyihong/Documents/ProstateECE/NPYNoDivide/FiveClinical.csv'
     # label_path = r'/home/zhangyihong/Documents/ProstateECE/SUH_Dwi1500/label.csv'
     # csv_path = r'/home/zhangyihong/Documents/ProstateECE/SUH_Dwi1500/FiveClinical.csv'
-    feature_df = pd.read_csv(csv_path, index_col='case')
-    label_df = pd.read_csv(label_path, index_col='case')
+    # feature_df = pd.read_csv(csv_path, index_col='case')
+    # label_df = pd.read_csv(label_path, index_col='case')
     # age_list = feature_df['age']
     # psa_list = feature_df['psa']
     # pGs_list = feature_df['pGs']
@@ -124,38 +124,38 @@ if __name__ == '__main__':
     # b_NI_list = feature_df['b_NI']
     # label_list = label_df['ece']
 
-    age_list = []
-    psa_list = []
-    bGs_list = []
-    core_list = []
-    b_NI_list = []
-    label_list = []
-
-    for case in os.listdir(r'/home/zhangyihong/Documents/ProstateECE/NPYNoDivide/AdcSlice/Test'):
-        if case == 'Test' or case == 'DSR^dai shou rong_slice16.npy':
-            continue
-        else:
-            # case = case[: case.index('_-_slice')]
-            case = case[: case.index('.npy')]
-
-            age_list.append(feature_df.loc[case]['age'])
-            psa_list.append(feature_df.loc[case]['psa'])
-            bGs_list.append(feature_df.loc[case]['bGs'])
-            core_list.append(feature_df.loc[case]['core'])
-            b_NI_list.append(feature_df.loc[case]['b-NI'])
-            label_list.append(label_df.loc[case]['ece'])
-            # age_list.append(feature_df.loc[case]['age'])
-            # psa_list.append(feature_df.loc[case]['PSA'])
-            # pGs_list.append(feature_df.loc[case]['pGs'])
-            # core_list.append(feature_df.loc[case]['core'])
-            # b_NI_list.append(feature_df.loc[case]['b-NI'])
-            # label_list.append(label_df.loc[case]['label'])
-
-    DrawDistributionHist(age_list, 'Age in train', label_list)
-    DrawDistributionHist(psa_list, 'PSA in train', label_list)
-    DrawDistributionHist(bGs_list, 'bGs in internal test', label_list)
-    DrawDistributionHist(core_list, 'Core in train', label_list)
-    DrawDistributionHist(b_NI_list, 'b_NI in train', label_list)
+    # age_list = []
+    # psa_list = []
+    # bGs_list = []
+    # core_list = []
+    # b_NI_list = []
+    # label_list = []
+    #
+    # for case in os.listdir(r'/home/zhangyihong/Documents/ProstateECE/NPYNoDivide/AdcSlice/Test'):
+    #     if case == 'Test' or case == 'DSR^dai shou rong_slice16.npy':
+    #         continue
+    #     else:
+    #         # case = case[: case.index('_-_slice')]
+    #         case = case[: case.index('.npy')]
+    #
+    #         age_list.append(feature_df.loc[case]['age'])
+    #         psa_list.append(feature_df.loc[case]['psa'])
+    #         bGs_list.append(feature_df.loc[case]['bGs'])
+    #         core_list.append(feature_df.loc[case]['core'])
+    #         b_NI_list.append(feature_df.loc[case]['b-NI'])
+    #         label_list.append(label_df.loc[case]['ece'])
+    #         # age_list.append(feature_df.loc[case]['age'])
+    #         # psa_list.append(feature_df.loc[case]['PSA'])
+    #         # pGs_list.append(feature_df.loc[case]['pGs'])
+    #         # core_list.append(feature_df.loc[case]['core'])
+    #         # b_NI_list.append(feature_df.loc[case]['b-NI'])
+    #         # label_list.append(label_df.loc[case]['label'])
+    #
+    # DrawDistributionHist(age_list, 'Age in train', label_list)
+    # DrawDistributionHist(psa_list, 'PSA in train', label_list)
+    # DrawDistributionHist(bGs_list, 'bGs in internal test', label_list)
+    # DrawDistributionHist(core_list, 'Core in train', label_list)
+    # DrawDistributionHist(b_NI_list, 'b_NI in train', label_list)
 
 
 

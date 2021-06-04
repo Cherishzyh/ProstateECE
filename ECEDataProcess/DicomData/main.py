@@ -75,7 +75,6 @@ class AutoProcessor:
 
         return True, ''
 
-
     def SeperateDWI(self, case_folder):
         self.dwi_processor.Seperate4DDwiInCaseFolder(case_folder)
 

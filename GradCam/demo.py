@@ -14,7 +14,9 @@ from torchvision import models, transforms
 from GradCam.grad_cam import GradCAM
 from GradCam.grad_cam_main import save_gradcam
 
-device = torch.device('cpu')
+
+# device = torch.device('cpu')
+device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 def demo_my(model, input_list, input_class):
     """
@@ -47,20 +49,20 @@ def demo_my(model, input_list, input_class):
 
 
 if __name__ == '__main__':
-    from SSHProject.CnnTools.T4T.Utility.Data import *
-    from SSHProject.BasicTool.MeDIT.Normalize import Normalize01
-    from SSHProject.BasicTool.MeDIT.Visualization import FusionImage
+    from CnnTools.T4T.Utility.Data import *
+    from BasicTool.MeDIT.Normalize import Normalize01
+    from BasicTool.MeDIT.Visualization import FusionImage
     from SYECE.model import ResNeXt
     # from SYECE.ModelWithoutDis import ResNeXt
-    from SSHProject.BasicTool.MeDIT.ArrayProcess import ExtractPatch
-    from ECEDataProcess.DataProcess.MaxRoi import GetRoiCenter
+    from BasicTool.MeDIT.ArrayProcess import ExtractPatch
+    from ECEDataProcess.DataProcess.MaxRoi import GetRoiCenterBefore, GetRoiCenter
     from torch.utils.data import DataLoader
 
-    device = torch.device('cpu')
+    # device = torch.device('cpu')
     # model_root = r'/home/zhangyihong/Documents/ProstateECE/Model/ResNeXt_CBAM_CV_20200820/CV_0/31--5.778387.pt'
     model_root = r'/home/zhangyihong/Documents/ProstateECE/Model/ResNeXt_CBAM_CV_20200814/CV_1/154--7.698224.pt'
-    data_root = r'/home/zhangyihong/Documents/ProstateECE/NPYNoDivide'
-    output_dir = r'/home/zhangyihong/Documents/ProstateECE/grad_cam'
+    data_root = r'/home/zhangyihong/Documents/ProstateECE/SUH_Dwi1500'
+    output_dir = r'/home/zhangyihong/Documents/ProstateECE/Model'
 
     model = ResNeXt(3, 2).to(device)
     model.load_state_dict(torch.load(model_root))
@@ -68,22 +70,21 @@ if __name__ == '__main__':
 
     input_shape = (192, 192)
 
-    spliter = DataSpliter()
-    sub_list = spliter.LoadName(data_root + '/{}-name.csv'.format('test'))
-
-    data = DataManager(sub_list=sub_list)
-    data.AddOne(Image2D(data_root + '/T2Slice/Test', shape=input_shape))
-    data.AddOne(Image2D(data_root + '/AdcSlice/Test', shape=input_shape))
-    data.AddOne(Image2D(data_root + '/DwiSlice/Test', shape=input_shape))
-    data.AddOne(Image2D(data_root + '/DistanceMap/Test', shape=input_shape, is_roi=True))
-    data.AddOne(Image2D(data_root + '/ProstateSlice/Test', shape=input_shape, is_roi=True))
-    data.AddOne(Image2D(data_root + '/RoiSlice/Test', shape=input_shape, is_roi=True))
-    data.AddOne(Label(data_root + '/label.csv', label_tag='Negative'), is_input=False)
-    # data.AddOne(Label(data_root + '/label.csv', label_tag='Positive'), is_input=False)
+    data = DataManager()
+    data.AddOne(Image2D(data_root + '/T2Slice', shape=input_shape))
+    data.AddOne(Image2D(data_root + '/AdcSlice', shape=input_shape))
+    data.AddOne(Image2D(data_root + '/DwiSlice', shape=input_shape))
+    data.AddOne(Image2D(data_root + '/DistanceMap', shape=input_shape, is_roi=True))
+    data.AddOne(Image2D(data_root + '/ProstateSlice', shape=input_shape, is_roi=True))
+    # data.AddOne(Image2D(data_root + '/PCaSlice', shape=input_shape, is_roi=True))
+    data.AddOne(Label(data_root + '/label_negative.csv', label_tag='Negative'), is_input=False)
+    # data.AddOne(Label(data_root + '/label_negative.csv', label_tag='Positive'), is_input=False)
     data_loader = DataLoader(data, batch_size=1, shuffle=False)
 
     for i, (inputs, outputs) in enumerate(data_loader):
-        if i == 107 or i == 130:
+        # if i == 107 or i == 130:
+        #     case_name = 'XJA^xu ji an ^^6698-+4, ZHANG ZHEN'
+        if i == 19:
             t2, adc, dwi, dis_map = inputs[0], inputs[1], inputs[2], inputs[3]
             ece = outputs[0].to(device)
 
@@ -97,19 +98,22 @@ if __name__ == '__main__':
 
             prob, gradcam = demo_my(model, input_list, input_class.to(device))
 
-            center, box = GetRoiCenter(np.squeeze(inputs[4].numpy()))
+            center1 = GetRoiCenterBefore(np.squeeze(inputs[4].numpy()))
+            center2, _ = GetRoiCenter(np.squeeze(inputs[4].numpy()))
 
-            center = (center[0], center[1])
-            if i == 107:
-                shape = (120, 120)
-            else:
-                shape = (160, 160)
+            center = (center2[1], center2[0])
+            # if i == 107:
+            #     shape = (120, 120)
+            # else:
+            shape = (160, 160)
             t2_cropped, _ = ExtractPatch(np.squeeze(inputs[0].numpy()), patch_size=shape, center_point=center)
             gradcam_cropped, _ = ExtractPatch(np.squeeze(gradcam), patch_size=shape, center_point=center)
 
             merged_image = FusionImage(Normalize01(np.squeeze(t2_cropped)),
                                        Normalize01(np.squeeze(gradcam_cropped)), is_show=False)
 
+            # plt.suptitle("label: {}, pred: {:.3f}".format((1-ece), float((1-prob).cpu().data)))
+            # plt.suptitle("label: {}, pred: {:.3f}".format((ece), float((prob).cpu().data)))
             plt.subplot(121)
             plt.axis('off')
             plt.imshow(np.squeeze(t2_cropped), cmap='gray')
@@ -124,11 +128,13 @@ if __name__ == '__main__':
             plt.subplots_adjust(left=None, bottom=None, right=None, top=None,
                                 wspace=0.00, hspace=0.01)
 
-            # plt.savefig(r'/home/zhangyihong/Documents/ProstateECE/Paper/' + str(i) + '-RES.tif', format='tif', dpi=600, bbox_inches='tight', pad_inches=0.00)
-            plt.show()
+            # plt.savefig(r'/home/zhangyihong/Documents/ProstateECE/Paper/' + str(i) + '.eps', format='eps', dpi=600, bbox_inches='tight', pad_inches=0.00)
+            plt.savefig(os.path.join(output_dir, '{}_without.jpg'.format(i)), format='jpg', dpi=600, bbox_inches='tight', pad_inches=0.00)
+            # plt.show()
             plt.close()
             plt.clf()
         else:
             continue
+
 
 

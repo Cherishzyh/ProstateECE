@@ -176,7 +176,6 @@ def resnet18_cbam(pretrained=False, **kwargs):
     model = ResNet(BasicBlock, [2, 2, 2, 2], **kwargs)
     if pretrained:
         pretrained_state_dict = model_zoo.load_url(model_urls['resnet18'])
-        now_state_dict        = model.state_dict()
         now_state_dict.update(pretrained_state_dict)
         model.load_state_dict(now_state_dict)
     return model

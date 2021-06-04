@@ -9,18 +9,11 @@ from scipy.stats import chi2_contingency
 from sklearn import metrics
 from scipy import stats
 
-# def JPSH():
-# train_folder = r'/home/zhangyihong/Documents/ProstateECE/NPYNoDivide/AdcSlice'
-# test_folder = r'/home/zhangyihong/Documents/ProstateECE/NPYNoDivide/AdcSlice/Test'
-# SUH_folder = r'/home/zhangyihong/Documents/ProstateECE/SUH_Dwi1500/AdcSlice'
-#
-# ece_path = r'/home/zhangyihong/Documents/ProstateECE/NPYNoDivide/ECE-ROI.csv'
-
 
 def TTestAge(train_age, test_age):
-    print(np.mean(train_age), np.std(train_age),
+    print("train:", np.mean(train_age), np.std(train_age),
           np.quantile(train_age, 0.25, interpolation='lower'), np.quantile(train_age, 0.75, interpolation='higher'))
-    print(np.mean(test_age), np.std(test_age),
+    print("test:", np.mean(test_age), np.std(test_age),
           np.quantile(test_age, 0.25, interpolation='lower'), np.quantile(test_age, 0.75, interpolation='higher'))
 
     # print(normaltest(train_age))
@@ -29,17 +22,17 @@ def TTestAge(train_age, test_age):
     # print(kstest(train_age, 'norm', (np.mean(train_age), np.std(train_age))))
     # print(kstest(test_age, 'norm', (np.mean(test_age), np.std(test_age))))
     # print(levene(train_age, test_age))
-    # print(ttest_ind(train_age, test_age))
+    print(mannwhitneyu(train_age, test_age, alternative='two-sided'))
 # TTestAge(train_age, test_age)
 
 
 def CountGrade(Gs_list, grade_list):
     num_list = []
     for grade in grade_list:
-        if grade == grade_list[-1]:
-            num_list.append(len([case for case in Gs_list if case >= grade]))
-        else:
-            num_list.append(len([case for case in Gs_list if case == grade]))
+        # if grade == grade_list[-1]:
+        #     num_list.append(len([case for case in Gs_list if case >= grade]))
+        # else:
+        num_list.append(len([case for case in Gs_list if case == grade]))
     print(num_list)
     return num_list
 # CountbGs(train_pGs, grade_list=[1, 2, 3, 4, 5, 6, 7])
@@ -49,17 +42,17 @@ def CountGrade(Gs_list, grade_list):
 
 
 def Countpsa(train_psa, test_psa):
-    print(np.mean(train_psa), np.std(train_psa),
+    print("train:", np.mean(train_psa), np.std(train_psa),
           np.quantile(train_psa, 0.25, interpolation='lower'), np.quantile(train_psa, 0.75, interpolation='higher'))
-    print(np.mean(test_psa), np.std(test_psa),
+    print("test:", np.mean(test_psa), np.std(test_psa),
           np.quantile(test_psa, 0.25, interpolation='lower'), np.quantile(test_psa, 0.75, interpolation='higher'))
 
-    print(normaltest(train_psa))
-    print(normaltest(test_psa))
+    # print(normaltest(train_psa))
+    # print(normaltest(test_psa))
     # print(kstest(train_psa, 'norm', (np.mean(train_psa), np.std(train_psa))))
     # print(kstest(test_psa, 'norm', (np.mean(test_psa), np.std(test_psa))))
     # print(levene(train_psa, test_psa))
-    # print(ttest_ind(train_psa, test_psa))
+    print(mannwhitneyu(train_psa, test_psa, alternative='two-sided'))
 # Countpsa(train_psa, test_psa)
 
 
@@ -343,9 +336,6 @@ def StatisticsClinical(clinical_info, csv_path):
     # print(mannwhitneyu(train_pECE, test_pECE))
 
 
-
-
-
 if __name__ == '__main__':
 
 
@@ -397,11 +387,11 @@ if __name__ == '__main__':
     # print(wilcoxon(mean_pred_suh, [score / 3 for score in ece_score_hy_suh]))
 
 
-    train_csv = r'X:\CNNFormatData\ProstateCancerECE\NPYNoDivide\train_clinical.csv'
-    test_csv = r'X:\CNNFormatData\ProstateCancerECE\NPYNoDivide\test_clinical.csv'
-    train_list = StatisticsClinical('core', train_csv)
-    test_list = StatisticsClinical('core', test_csv)
-    print(mannwhitneyu(train_list[0], test_list[0]))
+    # train_csv = r'X:\CNNFormatData\ProstateCancerECE\NPYNoDivide\train_clinical.csv'
+    # test_csv = r'X:\CNNFormatData\ProstateCancerECE\NPYNoDivide\test_clinical.csv'
+    # train_list = StatisticsClinical('core', train_csv)
+    # test_list = StatisticsClinical('core', test_csv)
+    # print(mannwhitneyu(train_list[0], test_list[0]))
 
     # pred_df = pd.read_csv(r'X:\CNNFormatData\ProstateCancerECE\Result\CaseH5\ResNeXt\test.csv')
     # pred_df = pd.read_csv(r'C:\Users\ZhangYihong\Desktop\JMRI\feature\all_pred_test.csv')
@@ -421,6 +411,41 @@ if __name__ == '__main__':
     #
     # d = np.array([[265, 66], [331, 84]])
     # print(chi2_contingency(d))
+    ece_csv_path = r'X:\CNNFormatData\ProstateCancerECE\NPYNoDivide\ECE-ROI.csv'
+    case_folder = r'X:\StoreFormatData\ProstateCancerECE\ResampleData'
+    case_list = os.listdir(case_folder)
+    test_ref = r'X:\FAEFormatData\ECE\test_ref.csv'
+    test_ref_df = pd.read_csv(test_ref, index_col='CaseName')
+
+    test_list = test_ref_df.index.tolist()
+    train_list = [case for case in case_list if case not in test_list]
+
+    clinical_info = pd.read_csv(ece_csv_path, encoding='gbk', index_col='case')
+    age_train_list, age_test_list = [], []
+    psa_train_list, psa_test_list = [], []
+    PIRADS_train_list, PIRADS_test_list = [], []
+    ECE_train_list, ECE_test_list = [], []
+
+    for case in test_list:
+        age_train_list.append(int(clinical_info.loc[case]['age']))
+        psa_train_list.append(float(clinical_info.loc[case]['psa']))
+        PIRADS_train_list.append(int(clinical_info.loc[case]['PI-RADS']))
+        ECE_train_list.append(int(clinical_info.loc[case]['pECE']))
+    for case in train_list:
+        age_test_list.append(int(clinical_info.loc[case]['age']))
+        psa_test_list.append(float(clinical_info.loc[case]['psa']))
+        PIRADS_test_list.append(int(clinical_info.loc[case]['PI-RADS']))
+        ECE_test_list.append(int(clinical_info.loc[case]['pECE']))
+    # TTestAge(age_train_list, age_test_list)
+    # Countpsa(psa_train_list, psa_test_list)
+    CountGrade(PIRADS_train_list, [1, 2, 3, 4, 5])
+    CountGrade(PIRADS_test_list, [1, 2, 3, 4, 5])
+    print(mannwhitneyu(PIRADS_train_list, PIRADS_test_list, alternative='two-sided'))
+
+
+
+
+
 
 
 

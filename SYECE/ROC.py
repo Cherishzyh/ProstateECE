@@ -301,14 +301,14 @@ def Test():
 # print(ECE_C_auc)
 
 if __name__  == '__main__':
-    from SSHProject.BasicTool.MeDIT.Statistics import BinaryClassification
+    from BasicTool.MeDIT.Statistics import BinaryClassification
     bc = BinaryClassification()
-    label = np.load(r'/home/zhangyihong/Documents/ProstateECE/Result/NPY/ChangeAtten/PCaRoi_SUH_label.npy').astype(int).tolist()
-    Boundary = np.load(r'/home/zhangyihong/Documents/ProstateECE/Result/NPY/ChangeAtten/Boundary_SUH_pred.npy').tolist()
-    PCaROI = np.load(r'/home/zhangyihong/Documents/ProstateECE/Result/NPY/ChangeAtten/PCaRoi_SUH_pred.npy').tolist()
-    Binary = np.load(r'/home/zhangyihong/Documents/ProstateECE/Result/NPY/ChangeAtten/BinaryAttentionMap_SUH_pred.npy').tolist()
-    Attention = np.load(r'/home/zhangyihong/Documents/ProstateECE/Result/NPY/SUH_dis_result.npy').tolist()
-    ResNeXt = np.load(r'/home/zhangyihong/Documents/ProstateECE/Result/NPY/SUH_nodis_result.npy').tolist()
+    # label = np.load(r'/home/zhangyihong/Documents/ProstateECE/Result/NPY/ChangeAtten/PCaRoi_SUH_label.npy').astype(int).tolist()
+    # Boundary = np.load(r'/home/zhangyihong/Documents/ProstateECE/Result/NPY/ChangeAtten/Boundary_SUH_pred.npy').tolist()
+    # PCaROI = np.load(r'/home/zhangyihong/Documents/ProstateECE/Result/NPY/ChangeAtten/PCaRoi_SUH_pred.npy').tolist()
+    # Binary = np.load(r'/home/zhangyihong/Documents/ProstateECE/Result/NPY/ChangeAtten/BinaryAttentionMap_SUH_pred.npy').tolist()
+    # Attention = np.load(r'/home/zhangyihong/Documents/ProstateECE/Result/NPY/SUH_dis_result.npy').tolist()
+    # ResNeXt = np.load(r'/home/zhangyihong/Documents/ProstateECE/Result/NPY/SUH_nodis_result.npy').tolist()
 
     # label = np.load(r'/home/zhangyihong/Documents/ProstateECE/Result/NPY/ChangeAtten/PCaRoi_alltrain_label.npy').astype(int).tolist()
     # Boundary = np.load(r'/home/zhangyihong/Documents/ProstateECE/Result/NPY/ChangeAtten/Boundary_alltrain_pred.npy').tolist()
@@ -319,28 +319,53 @@ if __name__  == '__main__':
     # bc.Run(PCaROI, label)
     # bc.Run(Boundary, label)
 
+    # plt.figure(0, figsize=(6, 5))
+    # plt.plot([0, 1], [0, 1], 'k--')
+    #
+    # fpn, sen, _ = roc_curve(label, ResNeXt)
+    # auc = roc_auc_score(label, ResNeXt)
+    # plt.plot(fpn, sen, label='Baseline: {:.3f}'.format(auc))
+    #
+    # fpn, sen, _ = roc_curve(label, Boundary)
+    # auc = roc_auc_score(label, Boundary)
+    # plt.plot(fpn, sen, label='Prostate Boundary: {:.3f}'.format(auc))
+    #
+    # fpn, sen, _ = roc_curve(label, PCaROI)
+    # auc = roc_auc_score(label, PCaROI)
+    # plt.plot(fpn, sen, label='PCa Roi: {:.3f}'.format(auc))
+    #
+    # fpn, sen, _ = roc_curve(label, Binary)
+    # auc = roc_auc_score(label, Binary)
+    # plt.plot(fpn, sen, label='Binary Attention Map: {:.3f}'.format(auc))
+    #
+    # fpn, sen, _ = roc_curve(label, Attention)
+    # auc = roc_auc_score(label, Attention)
+    # plt.plot(fpn, sen, label='Attention Map: {:.3f}'.format(auc))
+    #
+    # plt.xlabel('1 - Specificity')
+    # plt.ylabel('Sensitivity')
+    # plt.legend(loc='lower right')
+    #
+    # plt.show()
+
+    train_label = np.load(r'/home/zhangyihong/Documents/Kindey901/Model/PAGNet0430/Result/train_label.npy').astype(int).tolist()
+    train_result = np.load(r'/home/zhangyihong/Documents/Kindey901/Model/PAGNet0430/Result/train.npy').tolist()
+    test_label = np.load(r'/home/zhangyihong/Documents/Kindey901/Model/PAGNet0430/Result/test_label.npy').astype(int).tolist()
+    test_result = np.load(r'/home/zhangyihong/Documents/Kindey901/Model/PAGNet0430/Result/test.npy').tolist()
+    bc.Run(train_result, train_label)
+    bc.Run(test_result, test_label)
+
+
     plt.figure(0, figsize=(6, 5))
     plt.plot([0, 1], [0, 1], 'k--')
 
-    fpn, sen, _ = roc_curve(label, ResNeXt)
-    auc = roc_auc_score(label, ResNeXt)
-    plt.plot(fpn, sen, label='Baseline: {:.3f}'.format(auc))
+    fpn, sen, _ = roc_curve(train_label, train_result)
+    auc = roc_auc_score(train_label, train_result)
+    plt.plot(fpn, sen, label='Train: {:.3f}'.format(auc))
 
-    fpn, sen, _ = roc_curve(label, Boundary)
-    auc = roc_auc_score(label, Boundary)
-    plt.plot(fpn, sen, label='Prostate Boundary: {:.3f}'.format(auc))
-
-    fpn, sen, _ = roc_curve(label, PCaROI)
-    auc = roc_auc_score(label, PCaROI)
-    plt.plot(fpn, sen, label='PCa Roi: {:.3f}'.format(auc))
-
-    fpn, sen, _ = roc_curve(label, Binary)
-    auc = roc_auc_score(label, Binary)
-    plt.plot(fpn, sen, label='Binary Attention Map: {:.3f}'.format(auc))
-
-    fpn, sen, _ = roc_curve(label, Attention)
-    auc = roc_auc_score(label, Attention)
-    plt.plot(fpn, sen, label='Attention Map: {:.3f}'.format(auc))
+    fpn, sen, _ = roc_curve(test_label, test_result)
+    auc = roc_auc_score(test_label, test_result)
+    plt.plot(fpn, sen, label='Test: {:.3f}'.format(auc))
 
     plt.xlabel('1 - Specificity')
     plt.ylabel('Sensitivity')

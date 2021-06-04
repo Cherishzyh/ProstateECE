@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from SSHProject.CnnTools.T4T.Utility.Data import *
 from SSHProject.CnnTools.T4T.Utility.Metric import Dice
 
-from AddClinicalFeature.withoutDisLastfc.ModelwithoutDis import ResNeXt
+from ControlGroup.AddClinicalFeature.withoutDisLastfc.ModelwithoutDis import ResNeXt
 
 from SSHProject.BasicTool.MeDIT.Statistics import BinaryClassification
 from SSHProject.BasicTool.MeDIT.Others import IterateCase

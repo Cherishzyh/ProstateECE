@@ -36,6 +36,7 @@ class UNet(nn.Module):
         self.conv3 = DoubleConv(128, 256)
         self.pool3 = nn.MaxPool2d(2)
         self.conv4 = DoubleConv(256, 512)
+
         self.up5 = nn.ConvTranspose2d(512, 256, 2, stride=2)
         self.conv6 = DoubleConv(512, 256)
         self.up6 = nn.ConvTranspose2d(256, 128, 2, stride=2)

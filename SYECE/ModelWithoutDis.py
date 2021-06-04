@@ -231,8 +231,8 @@ class ResNeXt(nn.Module):
         x = torch.flatten(x, 1)
         x_fcn = self.fc1(x)
         x = self.fc2(x_fcn)
-        # return torch.softmax(x, dim=1)
-        return torch.softmax(x, dim=1), x_fcn
+        return torch.softmax(x, dim=1)
+        # return torch.softmax(x, dim=1), x_fcn
         # return x
 
 

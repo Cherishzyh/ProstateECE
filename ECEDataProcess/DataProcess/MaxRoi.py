@@ -3,17 +3,18 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy import ndimage
 
-from MeDIT.SaveAndLoad import LoadNiiData
-from MeDIT.Visualization import Imshow3DArray
-from MeDIT.Normalize import Normalize01
+from BasicTool.MeDIT.SaveAndLoad import LoadNiiData
+from BasicTool.MeDIT.Visualization import Imshow3DArray
+from BasicTool.MeDIT.Normalize import Normalize01
+from BasicTool.MeDIT.ArrayProcess import ExtractBlock, ExtractPatch
 
 # from FilePath import resample_folder, csv_path, process_folder
 
 
 def SelectMaxRoiSlice(roi):
     roi_size = []
-    for slice in range(roi.shape[0]):
-        roi_size.append(np.sum(roi[slice, ...]))
+    for slice in range(roi.shape[-1]):
+        roi_size.append(np.sum(roi[..., slice]))
 
     max_slice = roi_size.index(max(roi_size))
 
@@ -58,25 +59,24 @@ def GetRoiCenter(roi):
     return center, (int(up), int(bottle), int(left), int(right))
 
 
-def GetRoiCenterNew(roi):
+def GetRoiCenterBefore(roi):
     roi_row = []
     roi_column = []
-    for up in range(roi.shape[0]):
-        roi_row.append(np.sum(roi[up, ...]))
-    for left in range(roi.shape[1]):
-        roi_column.append(np.sum(roi[..., left]))
+    for row in range(roi.shape[0]):
+        roi_row.append(np.sum(roi[row, ...]))
+    for column in range(roi.shape[1]):
+        roi_column.append(np.sum(roi[..., column]))
 
     max_row = max(roi_row)
     max_column = max(roi_column)
     row_index = roi_row.index(max_row)
     column_index = roi_column.index(max_column)
 
-    left = np.argmax(roi[row_index])
-    up = np.argmax(roi[..., column_index])
-    center = (int(left + max_row//2), int(up + max_column//2))
-    right = left + max_row
-    bottle = up + max_column
-    return center, (int(up), int(bottle), int(left), int(right))
+    column = np.argmax(roi[row_index])
+    row = np.argmax(roi[..., column_index])
+    center = [int(row + max_row//2), int(column + max_column//2)]
+    return center
+
 
 def KeepLargest(mask):
     new_mask = np.zeros(mask.shape)
@@ -88,7 +88,7 @@ def KeepLargest(mask):
     return label_im, nb_labels, new_mask
 
 
-def test():
+def test(resample_folder):
     case_list = os.listdir(resample_folder)
     row_list = []
     channel_list = []
@@ -113,7 +113,7 @@ def test():
     # print('max channel is:', max(channel_list))
 
 
-def ShowProblemData(case):
+def ShowProblemData(resample_folder, case):
     case_path = os.path.join(resample_folder, case)
     t2_path = os.path.join(case_path, 't2.nii')
     roi_path = os.path.join(case_path, 'roi.nii')
@@ -144,4 +144,7 @@ def ShowProblemData(case):
 
 
 if __name__ == '__main__':
-    ShowProblemData('XSJ^xu shou jun')
+    pass
+
+
+

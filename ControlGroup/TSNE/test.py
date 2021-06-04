@@ -4,6 +4,7 @@ from torch.utils.data import DataLoader
 import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.manifold import TSNE
+import seaborn as sns
 
 from SSHProject.CnnTools.T4T.Utility.Data import *
 
@@ -93,13 +94,14 @@ def ModelSUH():
 
 
 def plot_with_labels(lowDWeights, labels):
+    color_list = sns.color_palette('muted')
     plt.cla()
     X, Y = lowDWeights[:, 0], lowDWeights[:, 1]
     for x, y, s in zip(X, Y, labels):
         if s == 0:
-            p1 = plt.scatter(x, y, c='b')
+            p1 = plt.scatter(x, y, c=color_list[0])
         elif s == 1:
-            p2 = plt.scatter(x, y, c='r')
+            p2 = plt.scatter(x, y, c=color_list[1])
     plt.xlim(X.min(), X.max())
     plt.ylim(Y.min(), Y.max())
     plt.title('Visualize last layer')
@@ -220,8 +222,8 @@ def WriteCSV():
 
 
 if __name__ == '__main__':
-    # TSNE_plot()
-    TSNE_plot_csv()
+    TSNE_plot()
+    # TSNE_plot_csv()
 
 
 
