@@ -12,8 +12,8 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 from tensorboardX import SummaryWriter
 
-from T4T.Utility.Data import *
-from MeDIT.Augment import *
+from CnnTools.T4T.Utility.Data import *
+from BasicTool.MeDIT.Augment import *
 
 from DataSet.CheckPoint import EarlyStopping
 
@@ -112,7 +112,7 @@ def Train():
             class_pred_list.extend(list(class_out_sigmoid.cpu().detach().numpy()))
 
             if (i + 1) % 10 == 0:
-                print('Epoch [%d / %d], Iter [%d], Train Loss: %.4f' %(epoch + 1, 1000, i + 1, train_loss / 10))
+                print('Epoch [%d / %d], Iter [%d], Train Loss: %.4f' % (epoch + 1, 1000, i + 1, train_loss / 10))
                 print(list(class_out_sigmoid.cpu().detach().numpy()))
                 train_loss = 0.0
 
@@ -142,7 +142,7 @@ def Train():
                 class_pred_list.extend(list(class_out_sigmoid.cpu().detach().numpy()))
 
                 if (i + 1) % 10 == 0:
-                    print('Epoch [%d / %d], Iter [%d],  Valid Loss: %.4f' %(epoch + 1, 1000, i + 1, valid_loss / 10))
+                    print('Epoch [%d / %d], Iter [%d],  Valid Loss: %.4f' % (epoch + 1, 1000, i + 1, valid_loss / 10))
                     print(list(class_out_sigmoid.cpu().detach().numpy()))
                     valid_loss = 0.0
 

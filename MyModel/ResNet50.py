@@ -97,7 +97,7 @@ class Bottleneck(nn.Module):
 
 
 class ResNet(nn.Module):
-    def __init__(self, block, layers, num_classes=1000, zero_init_residual=False,
+    def __init__(self, block, layers, num_classes=2, zero_init_residual=False,
                  groups=1, width_per_group=64, replace_stride_with_dilation=None,
                  norm_layer=None):
         super(ResNet, self).__init__()
@@ -128,8 +128,12 @@ class ResNet(nn.Module):
         self.layer4 = self._make_layer(block, 512, layers[3], stride=2,
                                        dilate=replace_stride_with_dilation[2])
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
-        self.fc1 = nn.Linear(512 * block.expansion, num_classes)
-        self.fc2 = nn.Linear(num_classes, 2)
+        # self.fc1 = nn.Linear(512 * block.expansion, num_classes)
+        # self.fc2 = nn.Linear(num_classes, 2)
+        self.fc1 = nn.Sequential(nn.Linear(512 * block.expansion, self.inplanes),
+                                 nn.Dropout(0.5),
+                                 nn.ReLU(inplace=True))
+        self.fc2 = nn.Linear(self.inplanes, num_classes)
         # self.softmax = nn.Softmax(dim=1)
 
         for m in self.modules():
@@ -198,5 +202,5 @@ class ResNet(nn.Module):
 
 if __name__ == '__main__':
     model = ResNet(Bottleneck, [3, 4, 6, 3]).to(device)
-    inputs = torch.randn(1, 3, 184, 184).to(device)
+    inputs = torch.randn(1, 5, 184, 184).to(device)
     prediction = model(inputs)

@@ -4,9 +4,9 @@ import pandas as pd
 import torch
 from torch.utils.data import DataLoader
 
-from SSHProject.BasicTool.MeDIT.Augment import *
-from SSHProject.CnnTools.T4T.Utility.Data import *
-from SSHProject.BasicTool.MeDIT.Others import IterateCase
+from MeDIT.Augment import *
+from T4T.Utility.Data import *
+from MeDIT.Others import IterateCase
 from Metric.classification_statistics import get_auc, draw_roc
 
 from Metric.MyMetric import BinaryClassification
