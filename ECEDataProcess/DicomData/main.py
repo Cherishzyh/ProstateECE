@@ -3,7 +3,7 @@ import time
 import glob
 import shutil
 
-from MIP4AIM.Functions.DicomInfo import DicomShareInfo
+from MIP4AIM.Utility.DicomInfo import DicomShareInfo
 from MIP4AIM.Dicom2Nii.DataReader import DataReader
 from MIP4AIM.Dicom2Nii.Dicom2Nii import ConvertDicom2Nii
 from MIP4AIM.Application2Series.ManufactureMatcher import MatcherManager, SeriesCopyer
@@ -39,6 +39,7 @@ class AutoProcessor:
         self.pca_detector = CSDetectTrumpetNetWithROI()
 
 
+
     def DetectProstateCancer(self, case_folder):
         t2_path = os.path.join(case_folder, 't2.nii')
         adc_path = os.path.join(case_folder, 'adc_Reg.nii')
@@ -49,7 +50,7 @@ class AutoProcessor:
 
     def SegmentProstate(self, case_folder):
         t2_path = os.path.join(case_folder, 't2.nii')
-        self.prostate_segmentor.Run(t2_path, store_folder=case_folder)
+        self.prostate_segmentor.Run(t2_path, self.segment_model_folder, store_folder=case_folder)
 
     def RegistrateBySpacing(self, case_folder, target_b_value=1500):
         t2_path = os.path.join(case_folder, 't2.nii')
@@ -195,16 +196,23 @@ class AutoProcessor:
             time.sleep(3600)
 
 def main():
+    from pathlib import Path
     # raw_folder = r'data\temp_dicom'
     # store_folder = r'data\Processed'
     # failed_folder = r'data\Failed'
-    raw_folder = r'C:\Users\yangs\Desktop\data\dicom'
-    store_folder = r'C:\Users\yangs\Desktop\data\processed'
-    failed_folder = r'C:\Users\yangs\Desktop\data\failed'
-    segment_model_folder = r'd:\SuccessfulModel\ProstateSegmentTrumpetNet'
-    detect_model_folder = r'd:\SuccessfulModel\PCaDetectTrumpetNetBlurryROI1500QA_ZYD_Recheck_V1'
-    processor = AutoProcessor(raw_folder, store_folder, failed_folder, segment_model_folder, detect_model_folder, is_overwrite=True)
-    processor.IterativeCase()
+    # raw_folder = r'C:\Users\yangs\Desktop\data\dicom'
+    # store_folder = r'C:\Users\yangs\Desktop\data\processed'
+    # failed_folder = r'C:\Users\yangs\Desktop\data\failed'
+    # segment_model_folder =
+    # detect_model_folder = r'd:\SuccessfulModel\PCaDetectTrumpetNetBlurryROI1500QA_ZYD_Recheck_V1'
+    # processor = AutoProcessor(raw_folder, store_folder, failed_folder, segment_model_folder, detect_model_folder, is_overwrite=True)
+    # processor.IterativeCase()
+    data_folder = r'C:\Users\ZhangYihong\Desktop\aaaa\OriginalPath'
+    processor = AutoProcessor(r'', r'', r'', segment_model_folder=r'X:\SuccessfulModel\ProstateSegmentTrumpetNet', detect_model_folder=r'', is_overwrite=False)
+    for case in ['CSJ^chen shi jie', 'WU XIAO LEI', 'WXZ^wu xi zhong', 'XSJ^xu shou jun']:
+        data_path = os.path.join(data_folder, case)
+        processor.SegmentProstate(Path(data_path))
+
 
 if __name__ == '__main__':
     main()

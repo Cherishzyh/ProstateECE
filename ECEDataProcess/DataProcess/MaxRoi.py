@@ -3,10 +3,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy import ndimage
 
-from BasicTool.MeDIT.SaveAndLoad import LoadNiiData
-from BasicTool.MeDIT.Visualization import Imshow3DArray
-from BasicTool.MeDIT.Normalize import Normalize01
-from BasicTool.MeDIT.ArrayProcess import ExtractBlock, ExtractPatch
+from MeDIT.SaveAndLoad import LoadNiiData
+from MeDIT.Visualization import Imshow3DArray
+from MeDIT.Normalize import Normalize01
+from MeDIT.ArrayProcess import ExtractBlock, ExtractPatch
 
 # from FilePath import resample_folder, csv_path, process_folder
 

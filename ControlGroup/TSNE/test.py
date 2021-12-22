@@ -6,9 +6,9 @@ import matplotlib.pyplot as plt
 from sklearn.manifold import TSNE
 import seaborn as sns
 
-from SSHProject.CnnTools.T4T.Utility.Data import *
+from T4T.Utility.Data import *
 
-from SYECE.model import ResNeXt
+# from SYECE.model import ResNeXt
 # from SYECE.ModelWithoutDis import ResNeXt
 
 
@@ -127,7 +127,7 @@ def TSNE_plot():
 
     # SUH
     fcn_out = np.load(r'/home/zhangyihong/Documents/ProstateECE/Result/NPY/FcnOut/aver_fcn_PAGNet_suh.npy')
-    tsne = TSNE(perplexity=perplexity, n_components=2, init='pca', n_iter=1000)
+    tsne = TSNE(perplexity=perplexity, n_components=2, init='pca', n_iter=5000)
     x_embedded = tsne.fit_transform(fcn_out)
     labels = np.load(r'/home/zhangyihong/Documents/ProstateECE/Result/NPY/SUH_label.npy')
     plot_with_labels(x_embedded, labels)

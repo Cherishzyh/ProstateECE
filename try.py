@@ -3,16 +3,17 @@ import shutil
 import numpy as np
 import pandas as pd
 import seaborn as sns
+import SimpleITK as sitk
 
 from mpl_toolkits.axes_grid1.inset_locator import mark_inset
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FuncFormatter
-from BasicTool.MeDIT.Statistics import BinaryClassification
-from BasicTool.MeDIT.SaveAndLoad import LoadImage
-from BasicTool.MeDIT.Normalize import Normalize01
-from BasicTool.MeDIT.Visualization import Imshow3DArray
+from MeDIT.Statistics import BinaryClassification
+from MeDIT.SaveAndLoad import LoadImage
+from MeDIT.Normalize import Normalize01
+from MeDIT.Visualization import Imshow3DArray
 
 from copy import deepcopy
 
@@ -36,7 +37,7 @@ def ComputeAUC():
         pagnet_list.append(df.loc[index]['PAGNet'])
         resnext_list.append(df.loc[index]['ResNeXt'])
         pagnet_c_list.append(df.loc[index]['PAGNet + C'])
-    from BasicTool.MeDIT.Statistics import BinaryClassification
+    from MeDIT.Statistics import BinaryClassification
     bc = BinaryClassification()
     bc.Run(pagnet_list, label)
     bc.Run(resnext_list, label)
@@ -140,8 +141,8 @@ def AllResultCSVSupplement():
 
 
 def Model2Dvs3D():
-    from BasicTool.MeDIT.Statistics import MyWilcoxon, BinaryClassification
-    from BasicTool.MeDIT.Base.DeLongTest import DeLongTest
+    from MeDIT.Statistics import MyWilcoxon, BinaryClassification
+    from MeDIT.Base.DeLongTest import DeLongTest
     pagnet_3D_csv = r'X:\CNNFormatData\ProstateCancerECE\Result\CaseH5\PAGNet\test.csv'
     pagnet_2D_csv = r'X:\CNNFormatData\ProstateCancerECE\Result\PAGNet_test.csv'
     df_3d = pd.read_csv(pagnet_3D_csv, index_col='case')
@@ -538,7 +539,7 @@ if __name__ == '__main__':
     # new_info = pd.DataFrame({'case': case_list, 'Negative': neg_list, 'Positive': pos_list})
     # new_info.to_csv(r'X:\CNNFormatData\ProstateCancerECE\NPYNoDivide\label_new.csv', index=False)
 
-    # from BasicTool.MeDIT.SaveAndLoad import LoadH5AllTag
+    # from MeDIT.SaveAndLoad import LoadH5AllTag
     # data = LoadH5AllTag(r'X:\CNNFormatData\PzTzSegment_FormatH5\input0_output0\2019-CA-formal-BAO TONG-slicer_index_0.h5')
     # print(data)
     #
@@ -566,11 +567,11 @@ if __name__ == '__main__':
     # val_df.T.to_csv(r'/home/zhangyihong/Documents/ProstateECE/NPYMaxPred/val_name_basemodel.csv', index=False)
 
 
-
     # bc = BinaryClassification()
     # label = np.load(r'/home/zhangyihong/Documents/ProstateECE/Result/NPY/SUH_label.npy').tolist()
     # pred = np.load(r'/home/zhangyihong/Documents/ProstateECE/Result/NPY/SUH_dis_result.npy').tolist()
     # bc.Run(pred, label)
+
 
     # HistDistribution()
 
@@ -588,7 +589,6 @@ if __name__ == '__main__':
     # AddLabel()
     # ConcatCSV()
     # Show()
-
 
     ##########################################show image data###########################################################
     # _, ct, _ = LoadImage(r'X:\RawData\Kindey901_new\601548\data.nii.gz')
@@ -623,7 +623,6 @@ if __name__ == '__main__':
     # df = pd.DataFrame({'name': case_list_df, 'label': label_list})
     # df.to_csv('C:/Users/ZhangYihong/Desktop/alltrain_label.csv')
 
-
     ##############################################check data############################################################
 
     # standard_folder = r'/home/zhangyihong/Documents/Kindey901/Kindey_npy/atten_image'
@@ -640,13 +639,106 @@ if __name__ == '__main__':
     # pass
 
 
+    ##############################################check data############################################################
+
+    # folder = r'C:\Users\ZhangYihong\Desktop\aaaa\Modified'
+    # for case in os.listdir(folder):
+    # case = 'FAN DA HAI'
+    #     try:
+    #         case_folder = os.path.join(folder, case)
+    #         t2_path = os.path.join(case_folder, 't2.nii')
+    #         adc_path = os.path.join(case_folder, 'adc_Reg.nii')
+    #         dwi_path = os.path.join(case_folder, 'dwi_Reg.nii')
+    #         roi_path = os.path.join(case_folder, 'ROI_CK0_1.nii.gz')
+    #         pro_path = os.path.join(case_folder, 'ProstateROI_TrumpetNet.nii.gz')
+    #
+    #
+    #         t2 = sitk.GetArrayFromImage(sitk.ReadImage(t2_path))
+    #         print('t2')
+    #         adc = sitk.GetArrayFromImage(sitk.ReadImage(adc_path))
+    #         print('adc')
+    #         dwi = sitk.GetArrayFromImage(sitk.ReadImage(dwi_path))
+    #         print('dwi')
+    #         pro = sitk.GetArrayFromImage(sitk.ReadImage(pro_path))
+    #         print('roi')
+    #         roi = sitk.GetArrayFromImage(sitk.ReadImage(roi_path))
+    #         print('pro')
+            #
+            # print(np.max(roi))
+            # print(np.max(pro))
+
+            # print(sitk.ReadImage(t2_path).GetSpacing())
+            # print(sitk.ReadImage(t2_path).GetOrigin())
+            # print(sitk.ReadImage(t2_path).GetSize())
+            # print(sitk.ReadImage(t2_path).GetDirection())
+            # print(sitk.ReadImage(t2_path).GetSpacing())
+            # print(sitk.ReadImage(adc_path).GetSpacing())
+            # print(sitk.ReadImage(dwi_path).GetSpacing())
+            # print(sitk.ReadImage(roi_path).GetSpacing())
+            # print(sitk.ReadImage(pro_path).GetSpacing())
+        # except Exception as e:
+        #         print(case, e)
+
+    # ori_data = os.listdir(r'X:\RawData\ProstateCancerECE\PCa-RP')
+    # data_list = os.listdir(r'X:\RawData\BCR-ECE-score\BCR-ECE-score')
+    # print([case for case in data_list if case in ori_data])
+    # for data in [case for case in data_list if case in ori_data]:
+    #     shutil.copytree(os.path.join(r'X:\RawData\ProstateCancerECE\PCa-RP', data), os.path.join(r'C:\Users\ZhangYihong\Desktop\aaaa', data))
+
+    # for case in os.listdir(r'X:\PrcoessedData\BCR-ECE-score\ResampelNow'):
+    #     if len(os.listdir(os.path.join(r'X:\PrcoessedData\BCR-ECE-score\ResampelNow', case))) == 0:
+    #         print(case)
+
+    # df = pd.read_csv(r'Z:\pred.csv', index_col='CaseName')
+    # new_df = df.round(3)
+    # print()
+
+
+    # label_df = pd.read_csv(r'X:\CNNFormatData\ProstateCancerECE\SUH_Dwi1500\label.csv', index_col='case')
+    # pred_df = pd.read_csv(r'X:\CNNFormatData\ProstateCancerECE\SUH_Dwi1500\preds.csv', index_col='case')
+    # case_list = []
+    # pred_list = []
+    # label_list = []
+    # for case in label_df.index:
+    #     case_list.append(case)
+    #     pred_list.append(float(pred_df.loc[case, 'pred']))
+    #     label_list.append(int(label_df.loc[case, 'label']))
+    # new_df = pd.DataFrame({'CaseName': case_list, 'Pred': pred_list, 'Label': label_list})
+    # new_df.to_csv(r'X:\CNNFormatData\ProstateCancerECE\Result\all_suh_PAG.csv', index=False)
+
+    plt.figure(0, figsize=(6, 5))
+    plt.plot([0, 1], [0, 1], 'k--')
+
+    df = pd.read_csv(r'X:\CNNFormatData\ProstateCancerECE\Result\PAGNet_suh.csv', index_col='CaseName')
+    pred = df.values[:, 0].tolist()
+    label = np.array(df.values[:, 1].tolist(), dtype=np.int32).tolist()
+    # bc = BinaryClassification()
+    # bc.Run(pred, label)
+
+    fpn, sen, _ = roc_curve(label, pred)
+    auc = roc_auc_score(label, pred)
+    plt.plot(fpn, sen, label='103 Case: {:.3f}'.format(auc))
+
+    df = pd.read_csv(r'X:\CNNFormatData\ProstateCancerECE\Result\all_suh_PAG.csv', index_col='CaseName')
+    pred = df.values[:, 0].tolist()
+    label = np.array(df.values[:, 1].tolist(), dtype=np.int32).tolist()
+
+    fpn, sen, _ = roc_curve(label, pred)
+    auc = roc_auc_score(label, pred)
+    plt.plot(fpn, sen, label='146 Case: {:.3f}'.format(auc))
+
+    plt.xlabel('1 - Specificity')
+    plt.ylabel('Sensitivity')
+    plt.legend(loc='lower right')
+
+    plt.show()
 
 
 
-
-
-
-
+    # df1 = pd.read_csv(r'X:\CNNFormatData\ProstateCancerECE\Result\PAGNet_train.csv', index_col='case')
+    # df = pd.read_csv(r'X:\RawData\BCR-ECE-score\BCR-ECE-score-preds.csv', index_col='CaseName')
+    # case_list = [case for case in df1.index if case in df.index][0]
+    # print(df1.loc[case_list, 'Pred'], df.loc[case_list, 'Pred'])
 
 
 

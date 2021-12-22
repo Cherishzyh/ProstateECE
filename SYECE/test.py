@@ -3,14 +3,14 @@ from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
 from sklearn.manifold import TSNE
 
-from CnnTools.T4T.Utility.Data import *
+from T4T.Utility.Data import *
 
 from SYECE.model import ResNeXt, ResNeXtOneInput
 # from SYECE.ModelWithoutDis import ResNeXt
 
-from BasicTool.MeDIT.Statistics import BinaryClassification
-from BasicTool.MeDIT.Others import IterateCase
-from BasicTool.MeDIT.ArrayProcess import ExtractBlock
+from MeDIT.Statistics import BinaryClassification
+from MeDIT.Others import IterateCase
+from MeDIT.ArrayProcess import ExtractBlock
 
 
 def EnsembleInference(data_type, weights_list=None):

@@ -4,12 +4,12 @@ from torch.utils.data import DataLoader
 from tensorboardX import SummaryWriter
 from sklearn.metrics import roc_auc_score
 
-from BasicTool.MeDIT.Augment import *
-from BasicTool.MeDIT.Others import MakeFolder, CopyFile
+from MeDIT.Augment import *
+from MeDIT.Others import MakeFolder, CopyFile
 
-from CnnTools.T4T.Utility.Data import *
-from CnnTools.T4T.Utility.CallBacks import EarlyStopping
-from CnnTools.T4T.Utility.Initial import HeWeightInit
+from T4T.Utility.Data import *
+from T4T.Utility.CallBacks import EarlyStopping
+from T4T.Utility.Initial import HeWeightInit
 
 # from SYECE.path_config import model_root, data_root
 # from SYECE.ModelWithoutDis import ResNeXt

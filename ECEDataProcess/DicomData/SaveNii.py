@@ -249,9 +249,9 @@ class Mymethod:
 
 
 def main():
-    raw_folder = r'X:\RawData\ProstateCancerECE\PCa-RP'
-    store_folder = r'X:\PrcoessedData\ProstateCancerECE'
-    failed_folder = r'X:\PrcoessedData\ProstateCancerECE'
+    raw_folder = r'C:\Users\ZhangYihong\Desktop\aaaa'
+    store_folder = r'C:\Users\ZhangYihong\Desktop\aaaa'
+    failed_folder = r'C:\Users\ZhangYihong\Desktop\aaaa'
     processor = Mymethod(raw_folder, store_folder, failed_folder)
     # processor.CopyOneData('CB^chen bin')
 
@@ -267,4 +267,16 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    # main()
+    for case in os.listdir(r'C:\Users\ZhangYihong\Desktop\aaaa'):
+        case_folder = os.path.join(r'C:\Users\ZhangYihong\Desktop\aaaa', case)
+        if not os.path.isdir(case_folder):
+            continue
+        else:
+            try:
+                for root, dirs, files in os.walk(case_folder):
+                    data_list = [file for file in files if file.endswith('.nii')]
+                    if len(data_list) > 0:
+                        [shutil.copyfile(os.path.join(root, data), os.path.join(case_folder, data)) for data in data_list]
+            except Exception as e:
+                print(e)
